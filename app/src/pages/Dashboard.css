@@ -1,0 +1,362 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.dashboard__row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+/* Tasks */
+.dashboard__task-list {
+  list-style: none;
+}
+
+.dashboard__task-item {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dashboard__task-item:last-child { border-bottom: none; }
+.dashboard__task-item:hover { background: var(--bg-hover); }
+
+.dashboard__task-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard__task-title {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.dashboard__task-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard__task-assignee {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dashboard__task-due {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Communications */
+.dashboard__comm-list {
+  list-style: none;
+}
+
+.dashboard__comm-item {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dashboard__comm-item:last-child { border-bottom: none; }
+.dashboard__comm-item:hover { background: var(--bg-hover); }
+
+.dashboard__comm-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.dashboard__comm-recipient {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard__comm-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dashboard__comm-subject {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.dashboard__comm-ref {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* At-risk */
+.dashboard__risk-list {
+  list-style: none;
+}
+
+.dashboard__risk-item {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashboard__risk-item:last-child { border-bottom: none; }
+.dashboard__risk-item:hover { background: var(--bg-hover); }
+
+.dashboard__risk-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard__risk-company {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.dashboard__risk-detail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dashboard__risk-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard__risk-score-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 58px;
+  flex-shrink: 0;
+}
+
+/* Table */
+.dashboard__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard__table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard__table td {
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard__table tr:last-child td { border-bottom: none; }
+
+.dashboard__table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dashboard__table tbody tr:hover { background: var(--bg-hover); }
+
+.dashboard__table-ref {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.dashboard__table-link {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.dashboard__table-link:hover { color: var(--text-primary); }
+
+/* Expenses */
+.dashboard__expense-list {
+  list-style: none;
+}
+
+.dashboard__expense-item {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard__expense-item:last-child { border-bottom: none; }
+.dashboard__expense-item:hover { background: var(--bg-hover); }
+
+.dashboard__expense-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard__expense-claimant {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard__expense-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dashboard__expense-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard__expense-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard__expense-warn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent-orange);
+}
+
+/* Logistics */
+.dashboard__logistics-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dashboard__logistics-item {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashboard__logistics-item:last-child { border-bottom: none; }
+.dashboard__logistics-item:hover { background: var(--bg-hover); }
+
+.dashboard__logistics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard__logistics-ref {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.dashboard__logistics-company {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard__logistics-dates {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dashboard__logistics-checks {
+  display: flex;
+  gap: 12px;
+}
+
+.dashboard__logistics-check {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.dashboard__logistics-check.ok { color: #1e8449; }
+.dashboard__logistics-check.missing { color: #c0392b; }
+
+/* Quick stats */
+.dashboard__quick-stats {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard__quick-stat {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dashboard__quick-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dashboard__quick-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.dashboard__quick-stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}

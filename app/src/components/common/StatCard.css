@@ -1,0 +1,49 @@
+.stat-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 20px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100px;
+  flex: 1;
+}
+
+.stat-card--red    { background: #c0392b; }
+.stat-card--gold   { background: #7d6608; }
+.stat-card--orange { background: #ca6f1e; }
+.stat-card--dark   { background: #212121; }
+
+.stat-card__actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.stat-card__action-btn {
+  color: rgba(255,255,255,0.7);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  transition: color 0.15s;
+}
+
+.stat-card__action-btn:hover {
+  color: white;
+}
+
+.stat-card__value {
+  font-size: 36px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-card__label {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+}

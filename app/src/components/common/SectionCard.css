@@ -1,0 +1,56 @@
+.section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.section-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.section-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-card__edit-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.section-card__edit-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.section-card__body {
+  padding: 0;
+}
+
+.section-card__empty {
+  padding: 24px 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
