@@ -17,7 +17,7 @@
 .sidebar__logo {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
   padding: 16px 14px;
   border-bottom: 1px solid var(--border);

@@ -37,12 +37,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         >
           <img src="/logo.png" alt="TechAnywhere" className="sidebar__logo-icon" />
         </button>
-        {!collapsed && (
-          <div className="sidebar__logo-text">
-            <span className="sidebar__logo-brand">tech</span>
-            <span className="sidebar__logo-brand sidebar__logo-brand--highlight">anywhere</span>
-          </div>
-        )}
       </div>
 
       <nav className="sidebar__nav">
