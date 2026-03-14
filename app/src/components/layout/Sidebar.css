@@ -103,6 +103,7 @@
   transition: all 0.15s ease;
   position: relative;
   white-space: nowrap;
+  border: 2px solid transparent;
 }
 
 .sidebar__item:hover {
@@ -112,11 +113,11 @@
 
 .sidebar__item--active {
   color: var(--text-primary);
-  background: var(--accent-red);
+  border: 2px solid var(--accent-red);
 }
 
 .sidebar__item--active:hover {
-  background: var(--accent-red-hover);
+  border: 2px solid var(--accent-red-hover);
 }
 
 .sidebar__icon {
