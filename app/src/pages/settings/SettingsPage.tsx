@@ -8,7 +8,7 @@ import {
   getAuth,
 } from 'firebase/auth';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getFirestore } from 'firebase/firestore';
 import PageHeader from '../../components/common/PageHeader';
 import SectionCard from '../../components/common/SectionCard';
 import Modal from '../../components/common/Modal';
@@ -157,8 +157,9 @@ export default function SettingsPage() {
     try {
       secondaryApp = initializeApp(firebaseConfig, `create-user-${Date.now()}`);
       const secondaryAuth = getAuth(secondaryApp);
+      const secondaryDb = getFirestore(secondaryApp);
       const cred = await createUserWithEmailAndPassword(secondaryAuth, addForm.email, addForm.password);
-      await setDoc(doc(db, 'users', cred.user.uid), {
+      await setDoc(doc(secondaryDb, 'users', cred.user.uid), {
         name: addForm.name,
         email: addForm.email,
         role: addForm.role,
