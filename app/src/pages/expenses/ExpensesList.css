@@ -110,3 +110,99 @@
 .expenses-list__amount {
   font-weight: 600;
 }
+
+.expenses-list__tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+}
+
+.expenses-list__tab {
+  flex: 1;
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.expenses-list__tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.expenses-list__tab.active { background: var(--accent-red); color: white; font-weight: 600; }
+
+.expenses-list__reinstate-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid #1e8449;
+  background: none;
+  color: #1e8449;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.expenses-list__reinstate-btn:hover { background: #1e8449; color: white; }
+
+.expenses-list__upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 7px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-hover);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.expenses-list__upload-zone:hover { border-color: var(--accent-red); background: rgba(192,57,43,0.04); }
+
+.expenses-list__upload-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.expenses-list__upload-attached {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1e8449;
+  font-weight: 500;
+}
+
+.expenses-list__upload-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+}
+.expenses-list__upload-clear:hover { color: #c0392b; }
+
+.expenses-list__view-receipt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #1e8449;
+  background: none;
+  border: 1px solid #1e8449;
+  border-radius: 5px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.expenses-list__view-receipt:hover { background: #1e8449; color: white; }

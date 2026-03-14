@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type {
   Visit, Client, InternalAttendee, TransportBooking,
   AccommodationBooking, OfficeReadinessItem, CommunicationLog,
-  ExpenseClaim, VisitTask, VisitStatus, BookingStatus, ExpenseStatus, TaskStatus
+  ExpenseClaim, VisitTask, VisitStatus, BookingStatus, ExpenseStatus, TaskStatus, DeletedExpense
 } from '../data/types';
 import { MOCK_VISITS, MOCK_CLIENTS, OFFICE_READINESS_TEMPLATE } from '../data/mockData';
 
@@ -35,6 +35,7 @@ function calcReadiness(visit: Visit): number {
 interface AppState {
   visits: Visit[];
   clients: Client[];
+  deletedExpenses: DeletedExpense[];
 
   // Visit CRUD
   addVisit: (visit: Omit<Visit, 'id' | 'visitRef' | 'createdAt' | 'updatedAt' | 'logisticsReadinessScore' | 'clientAttendees' | 'internalAttendees' | 'transportBookings' | 'accommodationBookings' | 'officeReadiness' | 'communications' | 'expenses' | 'tasks'>) => string;
@@ -78,7 +79,8 @@ interface AppState {
   // Expenses
   addExpense: (visitId: string, expense: Omit<ExpenseClaim, 'id' | 'visitId'>) => void;
   updateExpense: (visitId: string, expenseId: string, changes: Partial<ExpenseClaim>) => void;
-  deleteExpense: (visitId: string, expenseId: string) => void;
+  deleteExpense: (visitId: string, expenseId: string, reason: string) => void;
+  reinstateExpense: (expenseId: string) => void;
   setExpenseStatus: (visitId: string, expenseId: string, status: ExpenseStatus, approvedBy?: string) => void;
 
   // Tasks
@@ -102,6 +104,7 @@ let visitCounter = MOCK_VISITS.length + 1;
 export const useAppStore = create<AppState>((set) => ({
   visits: MOCK_VISITS.map(v => ({ ...v, logisticsReadinessScore: calcReadiness(v) })),
   clients: MOCK_CLIENTS,
+  deletedExpenses: [],
 
   addVisit: (data) => {
     const id = generateId();
@@ -296,11 +299,31 @@ export const useAppStore = create<AppState>((set) => ({
       : v)
   })),
 
-  deleteExpense: (visitId, expenseId) => set(s => ({
-    visits: s.visits.map(v => v.id === visitId
-      ? updateVisitScore({ ...v, expenses: v.expenses.filter(e => e.id !== expenseId) })
-      : v)
-  })),
+  deleteExpense: (visitId, expenseId, reason) => set(s => {
+    const visit = s.visits.find(v => v.id === visitId);
+    const expense = visit?.expenses.find(e => e.id === expenseId);
+    const deleted: DeletedExpense | null = expense && visit
+      ? { ...expense, visitRef: visit.visitRef, company: visit.company, deletedAt: new Date().toISOString(), deletedReason: reason }
+      : null;
+    return {
+      visits: s.visits.map(v => v.id === visitId
+        ? updateVisitScore({ ...v, expenses: v.expenses.filter(e => e.id !== expenseId) })
+        : v),
+      deletedExpenses: deleted ? [...s.deletedExpenses, deleted] : s.deletedExpenses,
+    };
+  }),
+
+  reinstateExpense: (expenseId) => set(s => {
+    const deleted = s.deletedExpenses.find(e => e.id === expenseId);
+    if (!deleted) return s;
+    const { visitRef: _vr, company: _co, deletedAt: _da, deletedReason: _dr, ...expense } = deleted;
+    return {
+      deletedExpenses: s.deletedExpenses.filter(e => e.id !== expenseId),
+      visits: s.visits.map(v => v.id === deleted.visitId
+        ? updateVisitScore({ ...v, expenses: [...v.expenses, expense] })
+        : v),
+    };
+  }),
 
   setExpenseStatus: (visitId, expenseId, status, approvedBy) => set(s => ({
     visits: s.visits.map(v => v.id === visitId

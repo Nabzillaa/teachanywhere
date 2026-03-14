@@ -98,6 +98,12 @@ export interface CommunicationLog {
   notes?: string;
 }
 
+export interface ReceiptFile {
+  name: string;
+  type: string;
+  dataUrl: string;
+}
+
 export interface ExpenseClaim {
   id: string;
   visitId: string;
@@ -108,12 +114,20 @@ export interface ExpenseClaim {
   currency: string;
   date: string;
   receiptAttached: boolean;
+  receiptFile?: ReceiptFile;
   status: ExpenseStatus;
   approvedBy?: string;
   approvedAt?: string;
   exceptionApproved?: boolean;
   exceptionReason?: string;
   policyBreach?: boolean;
+}
+
+export interface DeletedExpense extends ExpenseClaim {
+  visitRef: string;
+  company: string;
+  deletedAt: string;
+  deletedReason: string;
 }
 
 export interface VisitTask {

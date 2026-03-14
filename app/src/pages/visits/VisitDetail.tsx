@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   ArrowLeft, Calendar, Users, Truck, Building2,
   MessageSquare, Receipt, ClipboardList, CheckSquare,
@@ -856,14 +856,26 @@ function ExpensesTab({ visitId }: { visitId: string }) {
   const deleteExpense = useAppStore(s => s.deleteExpense);
   const setExpenseStatus = useAppStore(s => s.setExpenseStatus);
 
-  type EForm = { claimantName: string; category: string; description: string; amount: string; currency: string; date: string; receiptAttached: boolean; status: ExpenseStatus; exceptionReason: string; };
-  const blank: EForm = { claimantName: '', category: 'Transport', description: '', amount: '', currency: 'PHP', date: '', receiptAttached: false, status: 'Draft', exceptionReason: '' };
+  type EForm = { claimantName: string; category: string; description: string; amount: string; currency: string; date: string; receiptAttached: boolean; receiptFile?: import('../../data/types').ReceiptFile; status: ExpenseStatus; exceptionReason: string; };
+  const blank: EForm = { claimantName: '', category: 'Transport', description: '', amount: '', currency: 'PHP', date: '', receiptAttached: false, receiptFile: undefined, status: 'Draft', exceptionReason: '' };
   const [modal, setModal] = useState<{ open: boolean; editId?: string; form: EForm }>({ open: false, form: blank });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; desc: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const total = visit.expenses.reduce((s, e) => s + e.amount, 0);
+  const total = visit.expenses.reduce((s, e) => s + Number(e.amount), 0);
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      setModal(m => ({ ...m, form: { ...m.form, receiptFile: { name: file.name, type: file.type, dataUrl }, receiptAttached: true } }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const save = () => {
-    const payload = { ...modal.form, amount: Number(modal.form.amount), category: modal.form.category as Parameters<typeof addExpense>[1]['category'] };
+    const payload = { ...modal.form, amount: Number(modal.form.amount), category: modal.form.category as Parameters<typeof addExpense>[1]['category'], receiptFile: modal.form.receiptFile ?? undefined };
     if (modal.editId) updateExpense(visitId, modal.editId, payload);
     else addExpense(visitId, payload as Parameters<typeof addExpense>[1]);
     setModal({ open: false, form: blank });
@@ -893,13 +905,17 @@ function ExpensesTab({ visitId }: { visitId: string }) {
                   <td style={{ fontWeight: 600 }}>{e.currency} {e.amount.toLocaleString()}</td>
                   <td>{e.date}</td>
                   <td>
-                    <button
-                      onClick={() => updateExpense(visitId, e.id, { receiptAttached: !e.receiptAttached })}
-                      className={`visit-detail__confirm-btn ${e.receiptAttached ? 'confirmed' : 'pending'}`}
-                      title="Click to toggle receipt"
-                    >
-                      {e.receiptAttached ? <><CheckCircle size={12} /> Yes</> : <><AlertTriangle size={12} /> Missing</>}
-                    </button>
+                    {e.receiptFile
+                      ? <button className="visit-detail__receipt-view" onClick={() => window.open(e.receiptFile!.dataUrl, '_blank')} title={e.receiptFile.name} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#1e8449', background: 'none', border: '1px solid #1e8449', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
+                          <CheckCircle size={11} /> View
+                        </button>
+                      : <button
+                          onClick={() => updateExpense(visitId, e.id, { receiptAttached: !e.receiptAttached })}
+                          className={`visit-detail__confirm-btn ${e.receiptAttached ? 'confirmed' : 'pending'}`}
+                        >
+                          {e.receiptAttached ? <><CheckCircle size={12} /> Yes</> : <><AlertTriangle size={12} /> Missing</>}
+                        </button>
+                    }
                   </td>
                   <td>
                     <select
@@ -912,10 +928,10 @@ function ExpensesTab({ visitId }: { visitId: string }) {
                   </td>
                   <td>
                     <div className="visit-detail__row-actions">
-                      <button className="visit-detail__action-btn" onClick={() => setModal({ open: true, editId: e.id, form: { claimantName: e.claimantName, category: e.category, description: e.description, amount: e.amount.toString(), currency: e.currency, date: e.date, receiptAttached: e.receiptAttached, status: e.status, exceptionReason: e.exceptionReason || '' } })}>
+                      <button className="visit-detail__action-btn" onClick={() => setModal({ open: true, editId: e.id, form: { claimantName: e.claimantName, category: e.category, description: e.description, amount: e.amount.toString(), currency: e.currency, date: e.date, receiptAttached: e.receiptAttached, receiptFile: e.receiptFile, status: e.status, exceptionReason: e.exceptionReason || '' } })}>
                         <Pencil size={13} />
                       </button>
-                      <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => deleteExpense(visitId, e.id)}>
+                      <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => { setDeleteConfirm({ id: e.id, desc: e.description }); setDeleteReason(''); }}>
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -954,13 +970,43 @@ function ExpensesTab({ visitId }: { visitId: string }) {
               </select>
             </div>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={modal.form.receiptAttached} onChange={e => setModal(m => ({ ...m, form: { ...m.form, receiptAttached: e.target.checked } }))} style={{ width: 'auto' }} />
-            Receipt Attached
-          </label>
+          <div className="modal-field">
+            <label>Receipt</label>
+            <div
+              className="expenses-list__upload-zone"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+            >
+              {modal.form.receiptFile
+                ? <span className="expenses-list__upload-attached"><span>📎</span> {modal.form.receiptFile.name}<button onClick={e => { e.stopPropagation(); setModal(m => ({ ...m, form: { ...m.form, receiptFile: undefined, receiptAttached: false } })); }} className="expenses-list__upload-clear">✕</button></span>
+                : <span className="expenses-list__upload-hint"><span>📎</span> Click or drag to attach receipt (image or PDF)</span>
+              }
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
+          </div>
           {!modal.form.receiptAttached && (
             <div className="modal-field"><label>Exception Reason (if no receipt)</label><textarea rows={2} value={modal.form.exceptionReason} onChange={e => setModal(m => ({ ...m, form: { ...m.form, exceptionReason: e.target.value } }))} placeholder="Document reason for exception approval" /></div>
           )}
+        </Modal>
+      )}
+
+      {deleteConfirm && (
+        <Modal
+          title="Delete Expense"
+          onClose={() => { setDeleteConfirm(null); setDeleteReason(''); }}
+          onSubmit={() => { if (deleteReason.trim()) { deleteExpense(visitId, deleteConfirm.id, deleteReason.trim()); setDeleteConfirm(null); setDeleteReason(''); } }}
+          submitLabel="Delete"
+          submitDestructive
+        >
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
+            Deleting <strong style={{ color: 'var(--text-primary)' }}>{deleteConfirm.desc}</strong>. A reason is required and will be recorded in the Deleted tab.
+          </p>
+          <div className="modal-field">
+            <label>Reason for deletion *</label>
+            <textarea rows={3} value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="e.g. Duplicate entry, incorrect amount..." style={{ resize: 'vertical' }} autoFocus />
+          </div>
+          {!deleteReason.trim() && <p style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>A reason is required before deleting.</p>}
         </Modal>
       )}
     </div>

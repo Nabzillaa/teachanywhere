@@ -14,7 +14,13 @@ export default function Dashboard() {
 
   const activeVisits = visits.filter(v => v.status === 'Active');
   const openTasks = visits.flatMap(v => v.tasks).filter(t => t.status !== 'Completed');
-  const pendingExpenses = visits.flatMap(v => v.expenses).filter(e => e.status === 'Submitted');
+  const allExpenses = visits.flatMap(v => v.expenses.map(e => ({ ...e, visitRef: v.visitRef })));
+  const pendingExpenses = allExpenses.filter(e => e.status === 'Draft' || e.status === 'Submitted');
+  const approvedExpenses = allExpenses.filter(e => e.status === 'Approved' || e.status === 'Paid');
+  const paidExpenses = allExpenses.filter(e => e.status === 'Paid');
+  const totalApproved = approvedExpenses.reduce((s, e) => s + Number(e.amount), 0);
+  const totalPending = pendingExpenses.reduce((s, e) => s + Number(e.amount), 0);
+  const totalPaid = paidExpenses.reduce((s, e) => s + Number(e.amount), 0);
   const upcomingVisits = visits.filter(v => ['Confirmed', 'In Planning', 'Ready for Arrival'].includes(v.status));
 
   const atRiskVisits = visits.filter(v =>
@@ -38,7 +44,7 @@ export default function Dashboard() {
       <div className="dashboard__stats">
         <StatCard value={activeVisits.length} label="Active Visits" color="red" onEdit={() => navigate('/visits')} onRefresh={() => {}} />
         <StatCard value={openTasks.length} label="Open Tasks" color="gold" onEdit={() => navigate('/visits')} onRefresh={() => {}} />
-        <StatCard value={pendingExpenses.length} label="Expenses Pending" color="orange" onEdit={() => navigate('/expenses')} onRefresh={() => {}} />
+        <StatCard value={`PHP ${totalPending.toLocaleString()}`} label="Expenses Pending" color="orange" onEdit={() => navigate('/expenses')} onRefresh={() => {}} />
         <StatCard value={upcomingVisits.length} label="Upcoming Visits" color="dark" onEdit={() => navigate('/visits')} onRefresh={() => {}} />
       </div>
 
@@ -163,12 +169,26 @@ export default function Dashboard() {
           )}
         </SectionCard>
 
-        <SectionCard title="Expense Actions" onEdit={() => navigate('/expenses')}>
+        <SectionCard title="Expense Summary" onEdit={() => navigate('/expenses')}>
+          <div className="dashboard__expense-totals">
+            {[
+              { label: 'Approved', amount: totalApproved, color: '#1e8449', count: approvedExpenses.length },
+              { label: 'Pending Approval', amount: totalPending, color: '#ca6f1e', count: pendingExpenses.length },
+              { label: 'Paid Out', amount: totalPaid, color: 'var(--text-primary)', count: paidExpenses.length },
+            ].map(row => (
+              <div key={row.label} className="dashboard__expense-total-row">
+                <span className="dashboard__expense-total-label">{row.label}</span>
+                <span className="dashboard__expense-total-count">{row.count} claims</span>
+                <span className="dashboard__expense-total-amount" style={{ color: row.color }}>PHP {row.amount.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div className="dashboard__expense-divider" />
           {pendingExpenses.length === 0 ? (
             <p className="section-card__empty">No expenses pending approval</p>
           ) : (
             <ul className="dashboard__expense-list">
-              {pendingExpenses.slice(0, 5).map(exp => (
+              {pendingExpenses.slice(0, 4).map(exp => (
                 <li key={exp.id} className="dashboard__expense-item" onClick={() => navigate('/expenses')}>
                   <div className="dashboard__expense-header">
                     <span className="dashboard__expense-claimant">{exp.claimantName}</span>
