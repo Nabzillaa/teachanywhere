@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Briefcase, Truck,
   Building2, MessageSquare, Receipt, BarChart2, Settings,
-  ChevronRight, MapPin, PanelLeftClose
+  ChevronRight, MapPin
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -30,18 +30,21 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
       <div className="sidebar__logo">
-        <div className="sidebar__logo-icon">
-          <MapPin size={20} />
-        </div>
+        <button
+          className="sidebar__logo-icon-btn"
+          onClick={onToggle}
+          title="Toggle sidebar"
+        >
+          <div className="sidebar__logo-icon">
+            <MapPin size={20} />
+          </div>
+        </button>
         {!collapsed && (
           <div className="sidebar__logo-text">
             <span className="sidebar__logo-brand">tech</span>
             <span className="sidebar__logo-brand sidebar__logo-brand--highlight">anywhere</span>
           </div>
         )}
-        <button className="sidebar__collapse-btn" onClick={onToggle} title="Toggle sidebar">
-          <PanelLeftClose size={16} style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-        </button>
       </div>
 
       <nav className="sidebar__nav">
