@@ -35,7 +35,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           onClick={onToggle}
           title="Toggle sidebar"
         >
-          <img src="/logo.png" alt="TechAnywhere" className="sidebar__logo-icon" />
+          <img src="/icon.png" alt="TechAnywhere" className="sidebar__logo-icon" />
         </button>
       </div>
 
