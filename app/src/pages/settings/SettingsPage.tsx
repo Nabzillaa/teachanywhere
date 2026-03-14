@@ -169,8 +169,14 @@ export default function SettingsPage() {
       setAddUserOpen(false);
       setAddForm({ name: '', email: '', password: '', role: 'Ops Admin' });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create user';
-      setAddError(msg.replace('Firebase: ', '').replace(/\(auth\/.*\)/, '').trim());
+      const code = (err as { code?: string })?.code ?? '';
+      const ERROR_MESSAGES: Record<string, string> = {
+        'auth/email-already-in-use': 'This email is already registered.',
+        'auth/invalid-email': 'Invalid email address.',
+        'auth/weak-password': 'Password must be at least 6 characters.',
+        'auth/too-many-requests': 'Too many attempts. Please wait and try again.',
+      };
+      setAddError(ERROR_MESSAGES[code] ?? (err instanceof Error ? err.message : 'Failed to create user'));
     } finally {
       setAddLoading(false);
       if (secondaryApp) await deleteApp(secondaryApp).catch(() => {});
