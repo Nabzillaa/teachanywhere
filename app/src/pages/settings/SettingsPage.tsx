@@ -290,7 +290,7 @@ export default function SettingsPage() {
 
       {/* Add User Modal */}
       {addUserOpen && (
-        <Modal title="Create New User" onClose={() => setAddUserOpen(false)} onSubmit={createUser} submitLabel={addLoading ? 'Creating…' : 'Create User'} width={580}>
+        <Modal title="Create New User" onClose={() => setAddUserOpen(false)} onSubmit={createUser} submitLabel={addLoading ? 'Creating…' : 'Create User'} width={580} disableBackdropClose>
           <div className="modal-row">
             <div className="modal-field"><label>Full Name *</label><input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Juan dela Cruz" /></div>
             <div className="modal-field"><label>Email Address *</label><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="juan@techanywhere.com" /></div>

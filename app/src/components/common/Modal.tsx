@@ -8,12 +8,13 @@ interface ModalProps {
   onSubmit?: () => void;
   submitLabel?: string;
   submitDestructive?: boolean;
+  disableBackdropClose?: boolean;
   width?: number;
   children: React.ReactNode;
   footer?: React.ReactNode;
 }
 
-export default function Modal({ title, onClose, onSubmit, submitLabel = 'Save', submitDestructive = false, width = 520, children, footer }: ModalProps) {
+export default function Modal({ title, onClose, onSubmit, submitLabel = 'Save', submitDestructive = false, disableBackdropClose = false, width = 520, children, footer }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function Modal({ title, onClose, onSubmit, submitLabel = 'Save', 
   }, [onClose]);
 
   return (
-    <div className="modal-overlay" ref={overlayRef} onClick={e => { if (e.target === overlayRef.current) onClose(); }}>
+    <div className="modal-overlay" ref={overlayRef} onClick={e => { if (!disableBackdropClose && e.target === overlayRef.current) onClose(); }}>
       <div className="modal" style={{ maxWidth: width }}>
         <div className="modal__header">
           <h2 className="modal__title">{title}</h2>
