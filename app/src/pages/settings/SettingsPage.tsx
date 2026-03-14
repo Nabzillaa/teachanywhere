@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Pencil, Trash2, Plus, ShieldAlert, Users } from 'lucide-react';
+import { Settings, Pencil, Trash2, Plus, ShieldAlert, Users, Eye, EyeOff } from 'lucide-react';
 import GroupsQuestionnaire from './GroupsQuestionnaire';
 import './SettingsPage.css';
 import {
@@ -116,6 +116,7 @@ export default function SettingsPage() {
   const [addForm, setAddForm] = useState({ name: '', email: '', password: '', role: 'Ops Admin' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<FirestoreUser | null>(null);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<{ questionId: string; value: string | string[] }[] | null>(null);
@@ -216,7 +217,7 @@ export default function SettingsPage() {
         title="System Users & Roles"
         actions={
           isAdmin ? (
-            <button className="section-card__edit-btn" onClick={() => { setAddForm({ name: '', email: '', password: '', role: 'Ops Admin' }); setAddError(''); setAddUserOpen(true); }}>
+            <button className="section-card__edit-btn" onClick={() => { setAddForm({ name: '', email: '', password: '', role: 'Ops Admin' }); setAddError(''); setShowPassword(false); setAddUserOpen(true); }}>
               <Plus size={12} /> Add User
             </button>
           ) : undefined
@@ -294,7 +295,25 @@ export default function SettingsPage() {
             <div className="modal-field"><label>Full Name *</label><input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Juan dela Cruz" /></div>
             <div className="modal-field"><label>Email Address *</label><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="juan@techanywhere.com" /></div>
           </div>
-          <div className="modal-field"><label>Password *</label><input type="password" value={addForm.password} onChange={e => setAddForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 characters" /></div>
+          <div className="modal-field">
+            <label>Password *</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={addForm.password}
+                onChange={e => setAddForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Min. 6 characters"
+                style={{ paddingRight: 40 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
           <div className="modal-field">
             <label>Access Control</label>
             <div className="role-picker">
