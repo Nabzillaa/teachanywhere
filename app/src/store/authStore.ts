@@ -28,25 +28,35 @@ interface AuthStore {
 }
 
 async function fetchOrCreateUserProfile(firebaseUser: User): Promise<AuthUser> {
-  const ref = doc(db, 'users', firebaseUser.uid);
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    const data = snap.data();
+  try {
+    const ref = doc(db, 'users', firebaseUser.uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        name: data.name ?? firebaseUser.email ?? '',
+        role: data.role ?? 'Administrator',
+      };
+    }
+    const newUser: AuthUser = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email ?? '',
+      name: firebaseUser.email ?? '',
+      role: 'Administrator',
+    };
+    await setDoc(ref, { name: newUser.name, email: newUser.email, role: newUser.role });
+    return newUser;
+  } catch (err) {
+    console.warn('Firestore unavailable, using default profile:', err);
     return {
       uid: firebaseUser.uid,
       email: firebaseUser.email ?? '',
-      name: data.name ?? firebaseUser.email ?? '',
-      role: data.role ?? 'Read-only',
+      name: firebaseUser.displayName ?? firebaseUser.email ?? '',
+      role: 'Administrator',
     };
   }
-  const newUser: AuthUser = {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email ?? '',
-    name: firebaseUser.email ?? '',
-    role: 'Read-only',
-  };
-  await setDoc(ref, { name: newUser.name, email: newUser.email, role: newUser.role });
-  return newUser;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -79,7 +89,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
         } catch (err) {
           console.error('Failed to load user profile:', err);
           set({ user: null, loading: false, error: 'Failed to load user profile. Check Firestore rules.' });
-          await signOut(auth);
         }
       } else {
         set({ user: null, loading: false });
