@@ -2,8 +2,9 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Briefcase, Truck,
   Building2, MessageSquare, Receipt, BarChart2, Settings,
-  ChevronRight
+  ChevronRight, LogOut
 } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 import './Sidebar.css';
 
 const NAV_ITEMS = [
@@ -26,6 +27,8 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
+  const user = useAuthStore(s => s.user);
+  const logout = useAuthStore(s => s.logout);
 
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
@@ -62,6 +65,20 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           );
         })}
       </nav>
+
+      {user && (
+        <div className={`sidebar__user ${collapsed ? 'sidebar__user--collapsed' : ''}`}>
+          {!collapsed && (
+            <div className="sidebar__user-info">
+              <span className="sidebar__user-name">{user.name}</span>
+              <span className="sidebar__user-role">{user.role}</span>
+            </div>
+          )}
+          <button className="sidebar__logout-btn" onClick={logout} title="Sign out">
+            <LogOut size={15} />
+          </button>
+        </div>
+      )}
     </aside>
   );
 }
