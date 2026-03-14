@@ -73,8 +73,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   init: () => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const user = await fetchOrCreateUserProfile(firebaseUser);
-        set({ user, loading: false });
+        try {
+          const user = await fetchOrCreateUserProfile(firebaseUser);
+          set({ user, loading: false });
+        } catch (err) {
+          console.error('Failed to load user profile:', err);
+          set({ user: null, loading: false, error: 'Failed to load user profile. Check Firestore rules.' });
+          await signOut(auth);
+        }
       } else {
         set({ user: null, loading: false });
       }
