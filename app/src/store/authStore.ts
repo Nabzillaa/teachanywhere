@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import { logAudit } from '../services/auditService';
 
 export type UserRole = 'Administrator' | 'Visit Lead' | 'Ops Admin' | 'Finance Approver' | 'Read-only';
 
@@ -71,6 +72,8 @@ async function fetchOrCreateUserProfile(firebaseUser: User): Promise<AuthUser> {
   }
 }
 
+let _loginPending = false;
+
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   loading: true,
@@ -78,18 +81,28 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   login: async (email, password) => {
     set({ error: null, loading: true });
+    _loginPending = true;
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch {
+      _loginPending = false;
       set({ error: 'Invalid email or password.', loading: false });
     }
-    // Safety fallback — reset loading if onAuthStateChanged never fires
     setTimeout(() => {
       useAuthStore.setState(s => s.loading ? { loading: false } : {});
     }, 8000);
   },
 
   logout: async () => {
+    const user = useAuthStore.getState().user;
+    if (user) {
+      await logAudit({
+        action: 'auth.logout',
+        actorUid: user.uid,
+        actorName: user.name,
+        actorEmail: user.email,
+      });
+    }
     await signOut(auth);
     set({ user: null });
   },
@@ -102,6 +115,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
         try {
           const user = await fetchOrCreateUserProfile(firebaseUser);
           set({ user, loading: false });
+          if (_loginPending) {
+            _loginPending = false;
+            logAudit({
+              action: 'auth.login',
+              actorUid: user.uid,
+              actorName: user.name,
+              actorEmail: user.email,
+            });
+          }
         } catch (err) {
           console.error('Failed to load user profile:', err);
           set({ user: null, loading: false, error: 'Failed to load user profile. Check Firestore rules.' });

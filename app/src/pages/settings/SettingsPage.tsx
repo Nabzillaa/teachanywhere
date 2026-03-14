@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, Pencil, Trash2, Plus, ShieldAlert, Users, Eye, EyeOff } from 'lucide-react';
 import GroupsQuestionnaire from './GroupsQuestionnaire';
+import AuditLog from './AuditLog';
 import './SettingsPage.css';
 import {
   createUserWithEmailAndPassword,
@@ -15,6 +16,7 @@ import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useAuthStore } from '../../store/authStore';
 import { db, firebaseConfig } from '../../lib/firebase';
+import { logAudit } from '../../services/auditService';
 
 interface Policy {
   id: number;
@@ -138,15 +140,33 @@ export default function SettingsPage() {
   }, [isAdmin]);
 
   const savePolicy = () => {
-    if (!policyValue) return;
+    if (!policyValue || !currentUser) return;
+    const prev = editPolicy!.value;
     setPolicies(ps => ps.map(p => p.id === editPolicy!.id ? { ...p, value: policyValue } : p));
+    logAudit({
+      action: 'settings.policy_updated',
+      actorUid: currentUser.uid,
+      actorName: currentUser.name,
+      actorEmail: currentUser.email,
+      target: editPolicy!.label,
+      details: `Changed from "${prev}" to "${policyValue}"`,
+    });
     setEditPolicy(null);
   };
 
   const saveUserRole = async () => {
-    if (!editUser) return;
+    if (!editUser || !currentUser) return;
+    const prevRole = editUser.role;
     await updateDoc(doc(db, 'users', editUser.uid), { role: editRole });
     setUsers(us => us.map(u => u.uid === editUser.uid ? { ...u, role: editRole } : u));
+    logAudit({
+      action: 'settings.role_changed',
+      actorUid: currentUser.uid,
+      actorName: currentUser.name,
+      actorEmail: currentUser.email,
+      target: editUser.name,
+      details: `Role changed from ${prevRole} to ${editRole}`,
+    });
     setEditUser(null);
   };
 
@@ -167,6 +187,16 @@ export default function SettingsPage() {
       });
       await firebaseSignOut(secondaryAuth);
       setUsers(us => [...us, { uid: cred.user.uid, name: addForm.name, email: addForm.email, role: addForm.role }]);
+      if (currentUser) {
+        logAudit({
+          action: 'settings.user_created',
+          actorUid: currentUser.uid,
+          actorName: currentUser.name,
+          actorEmail: currentUser.email,
+          target: addForm.name,
+          details: `${addForm.email} · Role: ${addForm.role}`,
+        });
+      }
       setAddUserOpen(false);
       setAddForm({ name: '', email: '', password: '', role: 'Ops Admin' });
     } catch (err: unknown) {
@@ -187,6 +217,16 @@ export default function SettingsPage() {
   const deleteUser = async (user: FirestoreUser) => {
     await deleteDoc(doc(db, 'users', user.uid));
     setUsers(us => us.filter(u => u.uid !== user.uid));
+    if (currentUser) {
+      logAudit({
+        action: 'settings.user_deleted',
+        actorUid: currentUser.uid,
+        actorName: currentUser.name,
+        actorEmail: currentUser.email,
+        target: user.name,
+        details: `${user.email} · Role: ${user.role}`,
+      });
+    }
     setConfirmDeleteUser(null);
   };
 
@@ -402,6 +442,8 @@ export default function SettingsPage() {
           onCancel={() => setShowQuestionnaire(false)}
         />
       )}
+
+      {isAdmin && <AuditLog />}
     </div>
   );
 }
