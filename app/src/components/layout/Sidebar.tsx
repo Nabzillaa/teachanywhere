@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Briefcase, Truck,
   Building2, MessageSquare, Receipt, BarChart2, Settings,
-  ChevronRight, MapPin
+  ChevronRight
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -35,9 +35,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           onClick={onToggle}
           title="Toggle sidebar"
         >
-          <div className="sidebar__logo-icon">
-            <MapPin size={20} />
-          </div>
+          <img src="/logo.png" alt="TechAnywhere" className="sidebar__logo-icon" />
         </button>
         {!collapsed && (
           <div className="sidebar__logo-text">
