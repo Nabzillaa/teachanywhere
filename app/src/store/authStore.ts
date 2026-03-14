@@ -27,6 +27,18 @@ interface AuthStore {
   init: () => () => void;
 }
 
+const ROLE_MAP: Record<string, UserRole> = {
+  'administrator': 'Administrator',
+  'visit lead': 'Visit Lead',
+  'ops admin': 'Ops Admin',
+  'finance approver': 'Finance Approver',
+  'read-only': 'Read-only',
+};
+
+function normalizeRole(raw: string): UserRole {
+  return ROLE_MAP[raw?.toLowerCase()] ?? (raw as UserRole) ?? 'Read-only';
+}
+
 async function fetchOrCreateUserProfile(firebaseUser: User): Promise<AuthUser> {
   try {
     const ref = doc(db, 'users', firebaseUser.uid);
@@ -37,7 +49,7 @@ async function fetchOrCreateUserProfile(firebaseUser: User): Promise<AuthUser> {
         uid: firebaseUser.uid,
         email: firebaseUser.email ?? '',
         name: data.name ?? firebaseUser.email ?? '',
-        role: data.role ?? 'Administrator',
+        role: normalizeRole(data.role) ?? 'Read-only',
       };
     }
     const newUser: AuthUser = {
