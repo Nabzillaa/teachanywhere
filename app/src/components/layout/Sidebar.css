@@ -23,6 +23,23 @@
   min-height: var(--topbar-height);
 }
 
+.sidebar__collapse-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius);
+  transition: color 0.15s, background 0.15s;
+}
+.sidebar__collapse-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 .sidebar__logo-icon {
   width: 30px;
   height: 30px;

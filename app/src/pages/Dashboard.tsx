@@ -15,7 +15,7 @@ export default function Dashboard() {
   const activeVisits = visits.filter(v => v.status === 'Active');
   const openTasks = visits.flatMap(v => v.tasks).filter(t => t.status !== 'Completed');
   const allExpenses = visits.flatMap(v => v.expenses.map(e => ({ ...e, visitRef: v.visitRef })));
-  const pendingExpenses = allExpenses.filter(e => e.status === 'Draft' || e.status === 'Submitted');
+  const pendingExpenses = allExpenses.filter(e => e.status === 'Submitted');
   const approvedExpenses = allExpenses.filter(e => e.status === 'Approved' || e.status === 'Paid');
   const paidExpenses = allExpenses.filter(e => e.status === 'Paid');
   const totalApproved = approvedExpenses.reduce((s, e) => s + Number(e.amount), 0);
@@ -260,7 +260,7 @@ export default function Dashboard() {
             <div className="dashboard__quick-stat">
               <span className="dashboard__quick-stat-icon" style={{ color: '#ca6f1e' }}><Clock size={20} /></span>
               <div>
-                <div className="dashboard__quick-stat-value">{visits.flatMap(v => v.expenses).filter(e => ['Submitted', 'Draft'].includes(e.status)).length}</div>
+                <div className="dashboard__quick-stat-value">{visits.flatMap(v => v.expenses).filter(e => e.status === 'Submitted').length}</div>
                 <div className="dashboard__quick-stat-label">Expense Claims Pending</div>
               </div>
             </div>

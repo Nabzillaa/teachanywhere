@@ -3,11 +3,23 @@ import { Receipt, AlertTriangle, Search, Plus, Pencil, Trash2, Paperclip, Extern
 import PageHeader from '../../components/common/PageHeader';
 import SectionCard from '../../components/common/SectionCard';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
+import InlineSelect from '../../components/common/InlineSelect';
 import { useAppStore } from '../../store/appStore';
 import type { ExpenseStatus, ExpenseCategory, ReceiptFile } from '../../data/types';
 import './ExpensesList.css';
 
 const STATUS_FILTERS: (ExpenseStatus | 'All')[] = ['All', 'Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'];
+
+function openReceipt(file: ReceiptFile) {
+  const byteString = atob(file.dataUrl.split(',')[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+  const blob = new Blob([ab], { type: file.type });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
 const CATEGORIES: ExpenseCategory[] = ['Transport', 'Accommodation', 'Meals', 'Incidentals', 'Other'];
 
 type ExpenseForm = {
@@ -26,7 +38,7 @@ type ExpenseForm = {
 
 const blank: ExpenseForm = {
   visitId: '', claimantName: '', category: 'Transport', description: '',
-  amount: '', currency: 'PHP', date: '', receiptAttached: false, receiptFile: undefined, policyBreach: false, status: 'Draft',
+  amount: '', currency: 'PHP', date: '', receiptAttached: false, receiptFile: undefined, policyBreach: false, status: 'Submitted',
 };
 
 export default function ExpensesList() {
@@ -37,6 +49,7 @@ export default function ExpensesList() {
   const updateExpense = useAppStore(s => s.updateExpense);
   const deleteExpense = useAppStore(s => s.deleteExpense);
   const reinstateExpense = useAppStore(s => s.reinstateExpense);
+  const purgeDeletedExpense = useAppStore(s => s.purgeDeletedExpense);
 
   const [tab, setTab] = useState<'active' | 'deleted'>('active');
   const [statusFilter, setStatusFilter] = useState<ExpenseStatus | 'All'>('All');
@@ -44,6 +57,7 @@ export default function ExpensesList() {
   const [modal, setModal] = useState<{ open: boolean; editId?: string; form: ExpenseForm }>({ open: false, form: blank });
   const [deleteConfirm, setDeleteConfirm] = useState<{ visitId: string; id: string; desc: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
+  const [purgeConfirm, setPurgeConfirm] = useState<{ id: string; desc: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allExpenses = visits.flatMap(v =>
@@ -62,7 +76,7 @@ export default function ExpensesList() {
   const sum = (es: typeof allExpenses) => es.reduce((s, e) => s + Number(e.amount), 0);
   const totalAll = sum(allExpenses);
   const totalApproved = sum(allExpenses.filter(e => e.status === 'Approved' || e.status === 'Paid'));
-  const totalPending = sum(allExpenses.filter(e => e.status === 'Draft' || e.status === 'Submitted'));
+  const totalPending = sum(allExpenses.filter(e => e.status === 'Submitted'));
   const totalRejected = sum(allExpenses.filter(e => e.status === 'Rejected'));
   const missingReceipts = allExpenses.filter(e => !e.receiptAttached && e.status !== 'Rejected').length;
 
@@ -118,7 +132,7 @@ export default function ExpensesList() {
         {[
           { label: 'Total Expenses', value: `PHP ${totalAll.toLocaleString()}`, color: undefined },
           { label: 'Approved & Paid', value: `PHP ${totalApproved.toLocaleString()}`, color: '#1e8449' },
-          { label: 'Pending (Draft + Submitted)', value: `PHP ${totalPending.toLocaleString()}`, color: '#ca6f1e' },
+          { label: 'Pending Approval', value: `PHP ${totalPending.toLocaleString()}`, color: '#ca6f1e' },
           { label: totalRejected > 0 ? `Rejected — PHP ${totalRejected.toLocaleString()}` : 'Missing Receipts', value: totalRejected > 0 ? String(allExpenses.filter(e => e.status === 'Rejected').length) + ' claims' : String(missingReceipts), color: (missingReceipts > 0 || totalRejected > 0) ? '#c0392b' : undefined },
         ].map(s => (
           <div key={s.label} className="expenses-list__summary-card">
@@ -178,16 +192,18 @@ export default function ExpensesList() {
                       <td>{e.date}</td>
                       <td>
                         {e.receiptFile
-                          ? <button className="expenses-list__view-receipt" onClick={() => window.open(e.receiptFile!.dataUrl, '_blank')} title={e.receiptFile.name}><ExternalLink size={11} /> View</button>
+                          ? <button className="expenses-list__view-receipt" onClick={() => openReceipt(e.receiptFile!)} title={e.receiptFile.name}><ExternalLink size={11} /> View</button>
                           : e.receiptAttached
                             ? <span style={{ color: '#1e8449', fontSize: 12 }}>✓ Yes</span>
                             : <span style={{ color: '#c0392b', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}><AlertTriangle size={12} /> Missing</span>
                         }
                       </td>
                       <td>
-                        <select value={e.status} onChange={ev => setExpenseStatus(e.visitId, e.id, ev.target.value as ExpenseStatus, 'Nabil Sabin')} className="visit-detail__inline-select">
-                          {(['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'] as ExpenseStatus[]).map(s => <option key={s}>{s}</option>)}
-                        </select>
+                        <InlineSelect
+                          value={e.status}
+                          options={['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid']}
+                          onChange={v => setExpenseStatus(e.visitId, e.id, v as ExpenseStatus, 'Nabil Sabin')}
+                        />
                       </td>
                       <td>
                         {e.policyBreach
@@ -232,13 +248,22 @@ export default function ExpensesList() {
                     <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(e.deletedAt).toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td style={{ fontSize: 12, color: '#ca6f1e', fontStyle: 'italic', maxWidth: 200 }}>{e.deletedReason}</td>
                     <td>
-                      <button
-                        className="expenses-list__reinstate-btn"
-                        title="Reinstate expense"
-                        onClick={() => reinstateExpense(e.id)}
-                      >
-                        Reinstate
-                      </button>
+                      <div className="visit-detail__row-actions">
+                        <button
+                          className="expenses-list__reinstate-btn"
+                          title="Reinstate expense"
+                          onClick={() => reinstateExpense(e.id)}
+                        >
+                          Reinstate
+                        </button>
+                        <button
+                          className="visit-detail__action-btn visit-detail__action-btn--delete"
+                          title="Permanently delete"
+                          onClick={() => setPurgeConfirm({ id: e.id, desc: e.description })}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -291,14 +316,6 @@ export default function ExpensesList() {
               <input type="date" value={modal.form.date} onChange={e => setF('date', e.target.value)} />
             </div>
           </div>
-          <div className="modal-row">
-            <div className="modal-field">
-              <label>Status</label>
-              <select value={modal.form.status} onChange={e => setF('status', e.target.value as ExpenseStatus)}>
-                {(['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'] as ExpenseStatus[]).map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
           <div className="modal-field">
             <label>Receipt</label>
             <div
@@ -325,6 +342,16 @@ export default function ExpensesList() {
             </label>
           </div>
         </Modal>
+      )}
+
+      {purgeConfirm && (
+        <ConfirmModal
+          title="Permanently Delete Expense"
+          message={<>This will permanently remove <strong>{purgeConfirm.desc}</strong> and cannot be undone.</>}
+          onConfirm={() => { purgeDeletedExpense(purgeConfirm.id); setPurgeConfirm(null); }}
+          onClose={() => setPurgeConfirm(null)}
+          confirmLabel="Delete Permanently"
+        />
       )}
 
       {deleteConfirm && (

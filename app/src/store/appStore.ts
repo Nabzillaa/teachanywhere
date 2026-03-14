@@ -81,6 +81,7 @@ interface AppState {
   updateExpense: (visitId: string, expenseId: string, changes: Partial<ExpenseClaim>) => void;
   deleteExpense: (visitId: string, expenseId: string, reason: string) => void;
   reinstateExpense: (expenseId: string) => void;
+  purgeDeletedExpense: (expenseId: string) => void;
   setExpenseStatus: (visitId: string, expenseId: string, status: ExpenseStatus, approvedBy?: string) => void;
 
   // Tasks
@@ -324,6 +325,10 @@ export const useAppStore = create<AppState>((set) => ({
         : v),
     };
   }),
+
+  purgeDeletedExpense: (expenseId) => set(s => ({
+    deletedExpenses: s.deletedExpenses.filter(e => e.id !== expenseId),
+  })),
 
   setExpenseStatus: (visitId, expenseId, status, approvedBy) => set(s => ({
     visits: s.visits.map(v => v.id === visitId

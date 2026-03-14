@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Briefcase, Truck,
   Building2, MessageSquare, Receipt, BarChart2, Settings,
-  ChevronRight, MapPin
+  ChevronRight, MapPin, PanelLeftClose
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -11,19 +11,20 @@ const NAV_ITEMS = [
   { label: 'VISITS', path: '/visits', icon: Calendar },
   { label: 'CLIENTS', path: '/clients', icon: Briefcase },
   { label: 'ATTENDEES', path: '/attendees', icon: Users },
-  { label: 'TRAVEL & LOGISTICS', path: '/logistics', icon: Truck, hasChildren: true },
+  { label: 'TRAVEL & LOGISTICS', path: '/logistics', icon: Truck },
   { label: 'OFFICE READINESS', path: '/office-readiness', icon: Building2 },
   { label: 'COMMUNICATIONS', path: '/communications', icon: MessageSquare },
-  { label: 'EXPENSES', path: '/expenses', icon: Receipt, hasChildren: true },
+  { label: 'EXPENSES', path: '/expenses', icon: Receipt },
   { label: 'REPORTS', path: '/reports', icon: BarChart2 },
   { label: 'SETTINGS', path: '/settings', icon: Settings },
 ];
 
 interface SidebarProps {
   collapsed: boolean;
+  onToggle: () => void;
 }
 
-export default function Sidebar({ collapsed }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
 
   return (
@@ -38,6 +39,9 @@ export default function Sidebar({ collapsed }: SidebarProps) {
             <span className="sidebar__logo-brand sidebar__logo-brand--highlight">anywhere</span>
           </div>
         )}
+        <button className="sidebar__collapse-btn" onClick={onToggle} title="Toggle sidebar">
+          <PanelLeftClose size={16} style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </button>
       </div>
 
       <nav className="sidebar__nav">

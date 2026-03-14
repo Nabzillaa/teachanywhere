@@ -9,8 +9,19 @@ import Badge from '../../components/common/Badge';
 import SectionCard from '../../components/common/SectionCard';
 import ProgressBar from '../../components/common/ProgressBar';
 import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { useAppStore } from '../../store/appStore';
-import type { VisitStatus, BookingStatus, ExpenseStatus, TaskStatus, CommStatus } from '../../data/types';
+import type { VisitStatus, BookingStatus, ExpenseStatus, TaskStatus, CommStatus, ReceiptFile } from '../../data/types';
+
+function openReceipt(file: ReceiptFile) {
+  const byteString = atob(file.dataUrl.split(',')[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+  const blob = new Blob([ab], { type: file.type });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
 import './VisitDetail.css';
 
 const TABS = [
@@ -60,7 +71,7 @@ export default function VisitDetail() {
   const completedReadiness = visit.officeReadiness.filter(o => o.completed).length;
   const confirmedAttendees = visit.internalAttendees.filter(a => a.attendanceConfirmed).length;
   const openTasks = visit.tasks.filter(t => t.status !== 'Completed').length;
-  const pendingExpenses = visit.expenses.filter(e => ['Draft', 'Submitted'].includes(e.status)).length;
+  const pendingExpenses = visit.expenses.filter(e => e.status === 'Submitted').length;
 
   return (
     <div className="visit-detail">
@@ -667,6 +678,7 @@ function OfficeTab({ visitId }: { visitId: string }) {
 
   const [addModal, setAddModal] = useState(false);
   const [newItem, setNewItem] = useState({ category: 'AV & Tech' as const, item: '' });
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; label: string } | null>(null);
 
   const completedCount = visit.officeReadiness.filter(o => o.completed).length;
   const total = visit.officeReadiness.length;
@@ -713,7 +725,7 @@ function OfficeTab({ visitId }: { visitId: string }) {
                     <button
                       className="visit-detail__action-btn visit-detail__action-btn--delete"
                       style={{ marginLeft: 'auto', opacity: 0.5 }}
-                      onClick={() => deleteOfficeReadinessItem(visitId, item.id)}
+                      onClick={() => setConfirmDelete({ id: item.id, label: item.item })}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -724,6 +736,15 @@ function OfficeTab({ visitId }: { visitId: string }) {
           </div>
         )}
       </SectionCard>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Remove Item"
+          message={<>Are you sure you want to remove <strong>{confirmDelete.label}</strong>? This cannot be undone.</>}
+          onConfirm={() => { deleteOfficeReadinessItem(visitId, confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
 
       {addModal && (
         <Modal title="Add Readiness Item" onClose={() => setAddModal(false)} onSubmit={() => {
@@ -763,6 +784,7 @@ function CommsTab({ visitId }: { visitId: string }) {
   type CForm = { type: string; subject: string; recipient: string; channel: string; status: CommStatus; notes: string; sentAt: string; };
   const blank: CForm = { type: 'Initial Planning', subject: '', recipient: '', channel: 'Email', status: 'Draft', notes: '', sentAt: '' };
   const [modal, setModal] = useState<{ open: boolean; editId?: string; form: CForm }>({ open: false, form: blank });
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; label: string } | null>(null);
 
   const save = () => {
     const payload = {
@@ -805,7 +827,7 @@ function CommsTab({ visitId }: { visitId: string }) {
                       <button className="visit-detail__action-btn" onClick={() => setModal({ open: true, editId: c.id, form: { type: c.type, subject: c.subject, recipient: c.recipient, channel: c.channel, status: c.status, notes: c.notes || '', sentAt: c.sentAt ? c.sentAt.slice(0, 10) : '' } })}>
                         <Pencil size={13} />
                       </button>
-                      <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => deleteCommunication(visitId, c.id)}>
+                      <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => setConfirmDelete({ id: c.id, label: c.subject })}>
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -816,6 +838,15 @@ function CommsTab({ visitId }: { visitId: string }) {
           </table>
         )}
       </SectionCard>
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Communication"
+          message={<>Are you sure you want to delete <strong>{confirmDelete.label}</strong>? This cannot be undone.</>}
+          onConfirm={() => { deleteCommunication(visitId, confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
 
       {modal.open && (
         <Modal title={modal.editId ? 'Edit Communication' : 'Log Communication'} onClose={() => setModal({ open: false, form: blank })} onSubmit={save} width={560}>
@@ -856,8 +887,8 @@ function ExpensesTab({ visitId }: { visitId: string }) {
   const deleteExpense = useAppStore(s => s.deleteExpense);
   const setExpenseStatus = useAppStore(s => s.setExpenseStatus);
 
-  type EForm = { claimantName: string; category: string; description: string; amount: string; currency: string; date: string; receiptAttached: boolean; receiptFile?: import('../../data/types').ReceiptFile; status: ExpenseStatus; exceptionReason: string; };
-  const blank: EForm = { claimantName: '', category: 'Transport', description: '', amount: '', currency: 'PHP', date: '', receiptAttached: false, receiptFile: undefined, status: 'Draft', exceptionReason: '' };
+  type EForm = { claimantName: string; category: string; description: string; amount: string; currency: string; date: string; receiptAttached: boolean; receiptFile?: ReceiptFile; status: ExpenseStatus; exceptionReason: string; };
+  const blank: EForm = { claimantName: '', category: 'Transport', description: '', amount: '', currency: 'PHP', date: '', receiptAttached: false, receiptFile: undefined, status: 'Submitted', exceptionReason: '' };
   const [modal, setModal] = useState<{ open: boolean; editId?: string; form: EForm }>({ open: false, form: blank });
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; desc: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
@@ -906,7 +937,7 @@ function ExpensesTab({ visitId }: { visitId: string }) {
                   <td>{e.date}</td>
                   <td>
                     {e.receiptFile
-                      ? <button className="visit-detail__receipt-view" onClick={() => window.open(e.receiptFile!.dataUrl, '_blank')} title={e.receiptFile.name} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#1e8449', background: 'none', border: '1px solid #1e8449', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
+                      ? <button className="visit-detail__receipt-view" onClick={() => openReceipt(e.receiptFile!)} title={e.receiptFile.name} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#1e8449', background: 'none', border: '1px solid #1e8449', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
                           <CheckCircle size={11} /> View
                         </button>
                       : <button
@@ -964,11 +995,6 @@ function ExpensesTab({ visitId }: { visitId: string }) {
           </div>
           <div className="modal-row">
             <div className="modal-field"><label>Date *</label><input type="date" value={modal.form.date} onChange={e => setModal(m => ({ ...m, form: { ...m.form, date: e.target.value } }))} /></div>
-            <div className="modal-field"><label>Status</label>
-              <select value={modal.form.status} onChange={e => setModal(m => ({ ...m, form: { ...m.form, status: e.target.value as ExpenseStatus } }))}>
-                {(['Draft', 'Submitted', 'Approved', 'Rejected', 'Paid'] as ExpenseStatus[]).map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
           </div>
           <div className="modal-field">
             <label>Receipt</label>
@@ -1024,6 +1050,7 @@ function TasksTab({ visitId }: { visitId: string }) {
   type TForm = { title: string; description: string; assignedTo: string; dueDate: string; status: TaskStatus; phase: string; priority: string; };
   const blank: TForm = { title: '', description: '', assignedTo: '', dueDate: '', status: 'Not Started', phase: 'Pre-Arrival', priority: 'Medium' };
   const [modal, setModal] = useState<{ open: boolean; editId?: string; form: TForm }>({ open: false, form: blank });
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; label: string } | null>(null);
 
   const save = () => {
     const payload = { ...modal.form, status: modal.form.status as TaskStatus, phase: modal.form.phase as Parameters<typeof addTask>[1]['phase'], priority: modal.form.priority as 'High' | 'Medium' | 'Low' };
@@ -1071,7 +1098,7 @@ function TasksTab({ visitId }: { visitId: string }) {
                         <button className="visit-detail__action-btn" onClick={() => setModal({ open: true, editId: t.id, form: { title: t.title, description: t.description || '', assignedTo: t.assignedTo, dueDate: t.dueDate, status: t.status, phase: t.phase, priority: t.priority } })}>
                           <Pencil size={13} />
                         </button>
-                        <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => deleteTask(visitId, t.id)}>
+                        <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => setConfirmDelete({ id: t.id, label: t.title })}>
                           <Trash2 size={13} />
                         </button>
                       </div>
@@ -1082,6 +1109,15 @@ function TasksTab({ visitId }: { visitId: string }) {
             </table>
           </SectionCard>
         ))
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Task"
+          message={<>Are you sure you want to delete the task <strong>{confirmDelete.label}</strong>? This cannot be undone.</>}
+          onConfirm={() => { deleteTask(visitId, confirmDelete.id); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
       )}
 
       {modal.open && (
