@@ -71,6 +71,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
     } catch {
       set({ error: 'Invalid email or password.', loading: false });
     }
+    // Safety fallback — reset loading if onAuthStateChanged never fires
+    setTimeout(() => {
+      useAuthStore.setState(s => s.loading ? { loading: false } : {});
+    }, 8000);
   },
 
   logout: async () => {

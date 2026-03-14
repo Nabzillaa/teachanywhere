@@ -1,12 +1,20 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import './LoginPage.css';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const login = useAuthStore(s => s.login);
+  const user = useAuthStore(s => s.user);
   const error = useAuthStore(s => s.error);
   const loading = useAuthStore(s => s.loading);
   const clearError = useAuthStore(s => s.clearError);
+
+  if (user) {
+    navigate('/', { replace: true });
+    return null;
+  }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
