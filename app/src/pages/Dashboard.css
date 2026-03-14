@@ -23,6 +23,35 @@
 }
 
 /* Tasks */
+.dashboard__task-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dashboard__task-filter-btn {
+  font-size: 11px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.dashboard__task-filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dashboard__task-filter-btn.active {
+  background: var(--accent-blue);
+  color: white;
+  border-color: var(--accent-blue);
+}
+
 .dashboard__task-list {
   list-style: none;
 }
@@ -50,6 +79,12 @@
   font-size: 13px;
   color: var(--text-primary);
   font-weight: 500;
+}
+
+.dashboard__task-visit-ref {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .dashboard__task-meta {

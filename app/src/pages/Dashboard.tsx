@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { LayoutDashboard, AlertTriangle, CheckCircle, Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
@@ -6,14 +7,20 @@ import SectionCard from '../components/common/SectionCard';
 import Badge from '../components/common/Badge';
 import ProgressBar from '../components/common/ProgressBar';
 import { useAppStore } from '../store/appStore';
+import type { TaskStatus } from '../data/types';
 import './Dashboard.css';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const visits = useAppStore(s => s.visits);
+  const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatus | 'All'>('All');
 
   const activeVisits = visits.filter(v => v.status === 'Active');
-  const openTasks = visits.flatMap(v => v.tasks).filter(t => t.status !== 'Completed');
+  const allTasksWithVisit = visits.flatMap(v => v.tasks.map(t => ({ ...t, visitId: v.id, visitRef: v.visitRef, company: v.company })));
+  const openTasks = allTasksWithVisit.filter(t => t.status !== 'Completed');
+  const filteredTasks = taskStatusFilter === 'All'
+    ? allTasksWithVisit
+    : allTasksWithVisit.filter(t => t.status === taskStatusFilter);
   const allExpenses = visits.flatMap(v => v.expenses.map(e => ({ ...e, visitRef: v.visitRef })));
   const pendingExpenses = allExpenses.filter(e => e.status === 'Submitted');
   const approvedExpenses = allExpenses.filter(e => e.status === 'Approved' || e.status === 'Paid');
@@ -49,16 +56,42 @@ export default function Dashboard() {
       </div>
 
       <div className="dashboard__grid">
-        <SectionCard title="Open Tasks" onEdit={() => navigate('/visits')}>
-          {openTasks.length === 0 ? (
-            <p className="section-card__empty">No Open Tasks to display</p>
+        <SectionCard
+          title="Tasks"
+          actions={
+            <div className="dashboard__task-filters">
+              {['All', 'Not Started', 'In Progress', 'Completed', 'Blocked'].map(status => (
+                <button
+                  key={status}
+                  className={`dashboard__task-filter-btn ${taskStatusFilter === status ? 'active' : ''}`}
+                  onClick={() => setTaskStatusFilter(status as TaskStatus | 'All')}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+          }
+        >
+          {filteredTasks.length === 0 ? (
+            <p className="section-card__empty">No {taskStatusFilter === 'All' ? '' : taskStatusFilter} tasks to display</p>
           ) : (
             <ul className="dashboard__task-list">
-              {openTasks.slice(0, 6).map(task => (
-                <li key={task.id} className="dashboard__task-item">
+              {filteredTasks.slice(0, 8).map(task => (
+                <li
+                  key={task.id}
+                  className="dashboard__task-item"
+                  onClick={() => navigate(`/visits/${task.visitId}?tab=tasks`)}
+                >
                   <div className="dashboard__task-main">
-                    <Badge label={task.priority} variant="priority" />
-                    <span className="dashboard__task-title">{task.title}</span>
+                    {task.status === 'Completed' ? (
+                      <CheckCircle size={14} style={{ color: '#1e8449', flexShrink: 0 }} />
+                    ) : (
+                      <Badge label={task.priority} variant="priority" />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div className="dashboard__task-title">{task.title}</div>
+                      <div className="dashboard__task-visit-ref">{task.visitRef} · {task.company}</div>
+                    </div>
                   </div>
                   <div className="dashboard__task-meta">
                     <span className="dashboard__task-assignee">{task.assignedTo}</span>
@@ -67,26 +100,6 @@ export default function Dashboard() {
                   </div>
                 </li>
               ))}
-            </ul>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Completed Tasks" onEdit={() => navigate('/visits')}>
-          {visits.flatMap(v => v.tasks).filter(t => t.status === 'Completed').length === 0 ? (
-            <p className="section-card__empty">No completed tasks to display</p>
-          ) : (
-            <ul className="dashboard__task-list">
-              {visits.flatMap(v => v.tasks)
-                .filter(t => t.status === 'Completed')
-                .slice(0, 4)
-                .map(task => (
-                  <li key={task.id} className="dashboard__task-item">
-                    <div className="dashboard__task-main">
-                      <CheckCircle size={14} style={{ color: '#1e8449', flexShrink: 0 }} />
-                      <span className="dashboard__task-title">{task.title}</span>
-                    </div>
-                  </li>
-                ))}
             </ul>
           )}
         </SectionCard>

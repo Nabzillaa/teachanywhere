@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft, Calendar, Users, Truck, Building2,
   MessageSquare, Receipt, ClipboardList, CheckSquare,
@@ -60,8 +60,16 @@ const ALL_STATUSES: VisitStatus[] = [
 export default function VisitDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'overview');
   const [showStatusPicker, setShowStatusPicker] = useState(false);
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   const visit = useAppStore(s => s.visits.find(v => v.id === id));
   const setVisitStatus = useAppStore(s => s.setVisitStatus);
