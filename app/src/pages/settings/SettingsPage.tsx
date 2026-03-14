@@ -1,9 +1,18 @@
-import { useState } from 'react';
-import { Settings, Pencil, Trash2, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, Pencil, Trash2, Plus, ShieldAlert } from 'lucide-react';
+import {
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  getAuth,
+} from 'firebase/auth';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import PageHeader from '../../components/common/PageHeader';
 import SectionCard from '../../components/common/SectionCard';
 import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import { useAuthStore } from '../../store/authStore';
+import { db, firebaseConfig } from '../../lib/firebase';
 
 interface Policy {
   id: number;
@@ -11,85 +20,69 @@ interface Policy {
   value: string;
   type: 'select' | 'number' | 'text';
   options?: string[];
-  unit?: string;
 }
 
-interface User {
-  id: number;
+interface FirestoreUser {
+  uid: string;
   name: string;
+  email: string;
   role: string;
-  access: string;
-  permissions: string;
 }
 
-const ACCESS_LEVELS = ['Visit Lead', 'Ops Admin', 'Finance Approver', 'Read-only', 'Administrator'];
+const ACCESS_LEVELS = ['Administrator', 'Finance Approver', 'Ops Admin', 'Read-only', 'Visit Lead'];
 
 const INITIAL_POLICIES: Policy[] = [
-  {
-    id: 1, label: 'Receipt Required', value: 'Yes — mandatory for all claims', type: 'select',
-    options: ['Yes — mandatory for all claims', 'No — optional', 'Yes — required above PHP 500'],
-  },
-  {
-    id: 2, label: 'Meal Per Diem Cap', value: 'PHP 800/day', type: 'select',
-    options: ['PHP 500/day', 'PHP 800/day', 'PHP 1,000/day', 'PHP 1,500/day', 'PHP 2,000/day', 'No cap'],
-  },
-  {
-    id: 3, label: 'Transport Pre-approval', value: 'Required for all bookings > PHP 3,000', type: 'select',
-    options: ['Required for all bookings', 'Required for all bookings > PHP 1,000', 'Required for all bookings > PHP 3,000', 'Required for all bookings > PHP 5,000', 'Not required'],
-  },
-  {
-    id: 4, label: 'Accommodation Approval', value: 'Visit Lead sign-off required', type: 'select',
-    options: ['Visit Lead sign-off required', 'Visit Lead + Manager sign-off required', 'Manager approval only', 'No approval required'],
-  },
-  {
-    id: 5, label: 'Expense Submission Window', value: 'Within 5 business days of visit end', type: 'select',
-    options: ['Within 2 business days of visit end', 'Within 5 business days of visit end', 'Within 7 business days of visit end', 'Within 14 business days of visit end', 'Within 30 days of visit end'],
-  },
-  {
-    id: 6, label: 'Remote Staff Travel', value: 'Pre-approved, Visit Lead + Manager sign-off', type: 'select',
-    options: ['Pre-approved, Visit Lead + Manager sign-off', 'Pre-approved, Visit Lead sign-off', 'Pre-approved, Manager sign-off only', 'No pre-approval required'],
-  },
-  {
-    id: 7, label: 'Pre-arrival Checklist Deadline', value: '7 calendar days before arrival', type: 'select',
-    options: ['3 calendar days before arrival', '5 calendar days before arrival', '7 calendar days before arrival', '10 calendar days before arrival', '14 calendar days before arrival'],
-  },
-  {
-    id: 8, label: 'Office Readiness Deadline', value: '48 hours before first office day', type: 'select',
-    options: ['24 hours before first office day', '48 hours before first office day', '72 hours before first office day', '1 week before first office day'],
-  },
-];
-
-const INITIAL_USERS: User[] = [
-  { id: 1, name: 'Nabil Sabin', role: 'Head of Service Delivery', access: 'Visit Lead', permissions: 'Full access — create, edit, approve, close' },
-  { id: 2, name: 'Maria Santos', role: 'Operations Coordinator', access: 'Ops Admin', permissions: 'Create, edit logistics, submit expenses' },
-  { id: 3, name: 'Finance Team', role: 'Finance', access: 'Finance Approver', permissions: 'View and approve/reject expense claims' },
-  { id: 4, name: 'Leadership', role: 'Executive', access: 'Read-only', permissions: 'View dashboards and reports only' },
+  { id: 1, label: 'Receipt Required', value: 'Yes — mandatory for all claims', type: 'select', options: ['Yes — mandatory for all claims', 'No — optional', 'Yes — required above PHP 500'] },
+  { id: 2, label: 'Meal Per Diem Cap', value: 'PHP 800/day', type: 'select', options: ['PHP 500/day', 'PHP 800/day', 'PHP 1,000/day', 'PHP 1,500/day', 'PHP 2,000/day', 'No cap'] },
+  { id: 3, label: 'Transport Pre-approval', value: 'Required for all bookings > PHP 3,000', type: 'select', options: ['Required for all bookings', 'Required for all bookings > PHP 1,000', 'Required for all bookings > PHP 3,000', 'Required for all bookings > PHP 5,000', 'Not required'] },
+  { id: 4, label: 'Accommodation Approval', value: 'Visit Lead sign-off required', type: 'select', options: ['Visit Lead sign-off required', 'Visit Lead + Manager sign-off required', 'Manager approval only', 'No approval required'] },
+  { id: 5, label: 'Expense Submission Window', value: 'Within 5 business days of visit end', type: 'select', options: ['Within 2 business days of visit end', 'Within 5 business days of visit end', 'Within 7 business days of visit end', 'Within 14 business days of visit end', 'Within 30 days of visit end'] },
+  { id: 6, label: 'Remote Staff Travel', value: 'Pre-approved, Visit Lead + Manager sign-off', type: 'select', options: ['Pre-approved, Visit Lead + Manager sign-off', 'Pre-approved, Visit Lead sign-off', 'Pre-approved, Manager sign-off only', 'No pre-approval required'] },
+  { id: 7, label: 'Pre-arrival Checklist Deadline', value: '7 calendar days before arrival', type: 'select', options: ['3 calendar days before arrival', '5 calendar days before arrival', '7 calendar days before arrival', '10 calendar days before arrival', '14 calendar days before arrival'] },
+  { id: 8, label: 'Office Readiness Deadline', value: '48 hours before first office day', type: 'select', options: ['24 hours before first office day', '48 hours before first office day', '72 hours before first office day', '1 week before first office day'] },
 ];
 
 const DEFAULT_PERMISSIONS: Record<string, string> = {
-  'Administrator':      'Full system access including settings',
-  'Visit Lead':         'Full access — create, edit, approve, close',
-  'Ops Admin':          'Create, edit logistics, submit expenses',
-  'Finance Approver':   'View and approve/reject expense claims',
-  'Read-only':          'View dashboards and reports only',
+  'Administrator':    'Full system access including settings',
+  'Visit Lead':       'Full access — create, edit, approve, close',
+  'Ops Admin':        'Create, edit logistics, submit expenses',
+  'Finance Approver': 'View and approve/reject expense claims',
+  'Read-only':        'View dashboards and reports only',
 };
 
 export default function SettingsPage() {
-  const [policies, setPolicies] = useState<Policy[]>(INITIAL_POLICIES);
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const currentUser = useAuthStore(s => s.user);
+  const isAdmin = currentUser?.role === 'Administrator';
 
+  const [policies, setPolicies] = useState<Policy[]>(INITIAL_POLICIES);
   const [editPolicy, setEditPolicy] = useState<Policy | null>(null);
   const [policyValue, setPolicyValue] = useState('');
 
-  const [editUser, setEditUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<FirestoreUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [editUser, setEditUser] = useState<FirestoreUser | null>(null);
+  const [editRole, setEditRole] = useState('');
   const [addUserOpen, setAddUserOpen] = useState(false);
-  const [userForm, setUserForm] = useState({ name: '', role: '', access: 'Ops Admin', permissions: '' });
-  const [confirmDeleteUser, setConfirmDeleteUser] = useState<User | null>(null);
+  const [addForm, setAddForm] = useState({ name: '', email: '', password: '', role: 'Ops Admin' });
+  const [addError, setAddError] = useState('');
+  const [addLoading, setAddLoading] = useState(false);
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<FirestoreUser | null>(null);
 
-  const openEditPolicy = (p: Policy) => {
-    setEditPolicy(p);
-    setPolicyValue(p.value);
-  };
+  useEffect(() => {
+    if (!isAdmin) return;
+    setLoadingUsers(true);
+    getDocs(collection(db, 'users'))
+      .then(snap => {
+        setUsers(snap.docs.map(d => ({
+          uid: d.id,
+          name: d.data().name ?? '',
+          email: d.data().email ?? '',
+          role: d.data().role ?? 'Read-only',
+        })));
+      })
+      .catch(console.error)
+      .finally(() => setLoadingUsers(false));
+  }, [isAdmin]);
 
   const savePolicy = () => {
     if (!policyValue) return;
@@ -97,30 +90,44 @@ export default function SettingsPage() {
     setEditPolicy(null);
   };
 
-  const openEditUser = (u: User) => {
-    setEditUser(u);
-    setUserForm({ name: u.name, role: u.role, access: u.access, permissions: u.permissions });
-  };
-
-  const saveUser = () => {
-    if (!userForm.name.trim()) return;
-    setUsers(us => us.map(u => u.id === editUser!.id ? { ...u, ...userForm } : u));
+  const saveUserRole = async () => {
+    if (!editUser) return;
+    await updateDoc(doc(db, 'users', editUser.uid), { role: editRole });
+    setUsers(us => us.map(u => u.uid === editUser.uid ? { ...u, role: editRole } : u));
     setEditUser(null);
   };
 
-  const openAddUser = () => {
-    setUserForm({ name: '', role: '', access: 'Ops Admin', permissions: DEFAULT_PERMISSIONS['Ops Admin'] });
-    setAddUserOpen(true);
+  const createUser = async () => {
+    if (!addForm.name.trim() || !addForm.email.trim() || !addForm.password.trim()) return;
+    setAddError('');
+    setAddLoading(true);
+    let secondaryApp;
+    try {
+      secondaryApp = initializeApp(firebaseConfig, `create-user-${Date.now()}`);
+      const secondaryAuth = getAuth(secondaryApp);
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, addForm.email, addForm.password);
+      await setDoc(doc(db, 'users', cred.user.uid), {
+        name: addForm.name,
+        email: addForm.email,
+        role: addForm.role,
+      });
+      await firebaseSignOut(secondaryAuth);
+      setUsers(us => [...us, { uid: cred.user.uid, name: addForm.name, email: addForm.email, role: addForm.role }]);
+      setAddUserOpen(false);
+      setAddForm({ name: '', email: '', password: '', role: 'Ops Admin' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create user';
+      setAddError(msg.replace('Firebase: ', '').replace(/\(auth\/.*\)/, '').trim());
+    } finally {
+      setAddLoading(false);
+      if (secondaryApp) await deleteApp(secondaryApp).catch(() => {});
+    }
   };
 
-  const addUser = () => {
-    if (!userForm.name.trim()) return;
-    setUsers(us => [...us, { id: Date.now(), ...userForm }]);
-    setAddUserOpen(false);
-  };
-
-  const handleAccessChange = (access: string) => {
-    setUserForm(f => ({ ...f, access, permissions: DEFAULT_PERMISSIONS[access] ?? f.permissions }));
+  const deleteUser = async (user: FirestoreUser) => {
+    await deleteDoc(doc(db, 'users', user.uid));
+    setUsers(us => us.filter(u => u.uid !== user.uid));
+    setConfirmDeleteUser(null);
   };
 
   return (
@@ -136,7 +143,7 @@ export default function SettingsPage() {
               <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, flex: 1 }}>{p.value}</span>
               <button
                 style={{ background: 'none', border: '1px solid var(--border-light)', borderRadius: 4, padding: '3px 10px', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
-                onClick={() => openEditPolicy(p)}
+                onClick={() => { setEditPolicy(p); setPolicyValue(p.value); }}
               >
                 <Pencil size={11} /> Edit
               </button>
@@ -149,38 +156,51 @@ export default function SettingsPage() {
       <SectionCard
         title="System Users & Roles"
         actions={
-          <button className="section-card__edit-btn" onClick={openAddUser}>
-            <Plus size={12} /> Add User
-          </button>
+          isAdmin ? (
+            <button className="section-card__edit-btn" onClick={() => { setAddForm({ name: '', email: '', password: '', role: 'Ops Admin' }); setAddError(''); setAddUserOpen(true); }}>
+              <Plus size={12} /> Add User
+            </button>
+          ) : undefined
         }
       >
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr>
-              {['Name', 'Role', 'Access Level', 'Permissions', ''].map(h => (
-                <th key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '8px 18px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(u => (
-              <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '10px 18px', fontWeight: 600 }}>{u.name}</td>
-                <td style={{ padding: '10px 18px', color: 'var(--text-secondary)' }}>{u.role}</td>
-                <td style={{ padding: '10px 18px' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--bg-hover)', padding: '2px 8px', borderRadius: 10, color: 'var(--text-secondary)' }}>{u.access}</span>
-                </td>
-                <td style={{ padding: '10px 18px', color: 'var(--text-secondary)', fontSize: 12 }}>{u.permissions}</td>
-                <td style={{ padding: '10px 18px' }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="visit-detail__action-btn" onClick={() => openEditUser(u)}><Pencil size={13} /></button>
-                    <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => setConfirmDeleteUser(u)}><Trash2 size={13} /></button>
-                  </div>
-                </td>
+        {!isAdmin ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 18px', color: 'var(--text-muted)', fontSize: 13 }}>
+            <ShieldAlert size={16} />
+            <span>Only Administrators can manage users.</span>
+          </div>
+        ) : loadingUsers ? (
+          <p className="section-card__empty">Loading users…</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr>
+                {['Name', 'Email', 'Role', 'Permissions', ''].map(h => (
+                  <th key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '8px 18px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.uid} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '10px 18px', fontWeight: 600 }}>{u.name}</td>
+                  <td style={{ padding: '10px 18px', color: 'var(--text-muted)', fontSize: 12 }}>{u.email}</td>
+                  <td style={{ padding: '10px 18px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, background: 'var(--bg-hover)', padding: '2px 8px', borderRadius: 10, color: 'var(--text-secondary)' }}>{u.role}</span>
+                  </td>
+                  <td style={{ padding: '10px 18px', color: 'var(--text-secondary)', fontSize: 12 }}>{DEFAULT_PERMISSIONS[u.role] ?? '—'}</td>
+                  <td style={{ padding: '10px 18px' }}>
+                    {u.uid !== currentUser?.uid && (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="visit-detail__action-btn" onClick={() => { setEditUser(u); setEditRole(u.role); }}><Pencil size={13} /></button>
+                        <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => setConfirmDeleteUser(u)}><Trash2 size={13} /></button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </SectionCard>
 
       {/* Edit Policy Modal */}
@@ -195,33 +215,33 @@ export default function SettingsPage() {
         </Modal>
       )}
 
-      {/* Edit User Modal */}
+      {/* Edit User Role Modal */}
       {editUser && (
-        <Modal title="Edit User" onClose={() => setEditUser(null)} onSubmit={saveUser} submitLabel="Save">
-          <div className="modal-field"><label>Name *</label><input value={userForm.name} onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))} /></div>
-          <div className="modal-field"><label>Role / Title</label><input value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))} /></div>
+        <Modal title={`Edit Role — ${editUser.name}`} onClose={() => setEditUser(null)} onSubmit={saveUserRole} submitLabel="Save">
           <div className="modal-field">
             <label>Access Level</label>
-            <select value={userForm.access} onChange={e => handleAccessChange(e.target.value)}>
+            <select value={editRole} onChange={e => setEditRole(e.target.value)}>
               {ACCESS_LEVELS.map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
-          <div className="modal-field"><label>Permissions</label><textarea rows={2} value={userForm.permissions} onChange={e => setUserForm(f => ({ ...f, permissions: e.target.value }))} /></div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{DEFAULT_PERMISSIONS[editRole]}</p>
         </Modal>
       )}
 
       {/* Add User Modal */}
       {addUserOpen && (
-        <Modal title="Add User" onClose={() => setAddUserOpen(false)} onSubmit={addUser} submitLabel="Add">
-          <div className="modal-field"><label>Name *</label><input value={userForm.name} onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Juan dela Cruz" /></div>
-          <div className="modal-field"><label>Role / Title</label><input value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))} placeholder="e.g. Operations Coordinator" /></div>
+        <Modal title="Create New User" onClose={() => setAddUserOpen(false)} onSubmit={createUser} submitLabel={addLoading ? 'Creating…' : 'Create User'} width={480}>
+          <div className="modal-field"><label>Full Name *</label><input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Juan dela Cruz" /></div>
+          <div className="modal-field"><label>Email Address *</label><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="juan@techanywhere.com" /></div>
+          <div className="modal-field"><label>Password *</label><input type="password" value={addForm.password} onChange={e => setAddForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 characters" /></div>
           <div className="modal-field">
             <label>Access Level</label>
-            <select value={userForm.access} onChange={e => handleAccessChange(e.target.value)}>
+            <select value={addForm.role} onChange={e => setAddForm(f => ({ ...f, role: e.target.value }))}>
               {ACCESS_LEVELS.map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
-          <div className="modal-field"><label>Permissions</label><textarea rows={2} value={userForm.permissions} onChange={e => setUserForm(f => ({ ...f, permissions: e.target.value }))} /></div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{DEFAULT_PERMISSIONS[addForm.role]}</p>
+          {addError && <p style={{ fontSize: 12, color: 'var(--accent-red-hover)', background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.3)', borderRadius: 6, padding: '8px 12px' }}>{addError}</p>}
         </Modal>
       )}
 
@@ -229,8 +249,8 @@ export default function SettingsPage() {
       {confirmDeleteUser && (
         <ConfirmModal
           title="Remove User"
-          message={<>Are you sure you want to remove <strong>{confirmDeleteUser.name}</strong>?</>}
-          onConfirm={() => { setUsers(us => us.filter(u => u.id !== confirmDeleteUser.id)); setConfirmDeleteUser(null); }}
+          message={<>Remove <strong>{confirmDeleteUser.name}</strong>? They will no longer be able to access the system.</>}
+          onConfirm={() => deleteUser(confirmDeleteUser)}
           onClose={() => setConfirmDeleteUser(null)}
         />
       )}

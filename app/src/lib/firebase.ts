@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: 'REDACTED_API_KEY',
   authDomain: 'techanywhere-95fd2.firebaseapp.com',
   projectId: 'techanywhere-95fd2',
