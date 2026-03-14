@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, Pencil, Trash2, Plus, ShieldAlert, Users } from 'lucide-react';
 import GroupsQuestionnaire from './GroupsQuestionnaire';
+import './SettingsPage.css';
 import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -41,6 +42,54 @@ const INITIAL_POLICIES: Policy[] = [
   { id: 6, label: 'Remote Staff Travel', value: 'Pre-approved, Visit Lead + Manager sign-off', type: 'select', options: ['Pre-approved, Visit Lead + Manager sign-off', 'Pre-approved, Visit Lead sign-off', 'Pre-approved, Manager sign-off only', 'No pre-approval required'] },
   { id: 7, label: 'Pre-arrival Checklist Deadline', value: '7 calendar days before arrival', type: 'select', options: ['3 calendar days before arrival', '5 calendar days before arrival', '7 calendar days before arrival', '10 calendar days before arrival', '14 calendar days before arrival'] },
   { id: 8, label: 'Office Readiness Deadline', value: '48 hours before first office day', type: 'select', options: ['24 hours before first office day', '48 hours before first office day', '72 hours before first office day', '1 week before first office day'] },
+];
+
+const ROLE_DEFINITIONS = [
+  {
+    role: 'Administrator',
+    description: 'Full system access including user and settings management.',
+    modules: [
+      { name: 'Visits', level: 'full' }, { name: 'Expenses', level: 'full' },
+      { name: 'Logistics', level: 'full' }, { name: 'Reports', level: 'full' },
+      { name: 'Settings', level: 'full' }, { name: 'Communications', level: 'full' },
+    ],
+  },
+  {
+    role: 'Visit Lead',
+    description: 'Manages visits end-to-end. Cannot access Settings.',
+    modules: [
+      { name: 'Visits', level: 'full' }, { name: 'Logistics', level: 'full' },
+      { name: 'Attendees', level: 'full' }, { name: 'Communications', level: 'full' },
+      { name: 'Expenses', level: 'view' }, { name: 'Settings', level: 'none' },
+    ],
+  },
+  {
+    role: 'Ops Admin',
+    description: 'Handles logistics, office readiness, and expense submission.',
+    modules: [
+      { name: 'Logistics', level: 'full' }, { name: 'Office', level: 'full' },
+      { name: 'Expenses', level: 'submit' }, { name: 'Communications', level: 'full' },
+      { name: 'Visits', level: 'view' }, { name: 'Settings', level: 'none' },
+    ],
+  },
+  {
+    role: 'Finance Approver',
+    description: 'Views and approves or rejects expense claims and reports.',
+    modules: [
+      { name: 'Expenses', level: 'full' }, { name: 'Reports', level: 'full' },
+      { name: 'Dashboard', level: 'view' }, { name: 'Visits', level: 'none' },
+      { name: 'Logistics', level: 'none' }, { name: 'Settings', level: 'none' },
+    ],
+  },
+  {
+    role: 'Read-only',
+    description: 'View-only access across dashboards and reports. Cannot edit anything.',
+    modules: [
+      { name: 'Dashboard', level: 'view' }, { name: 'Reports', level: 'view' },
+      { name: 'Visits', level: 'view' }, { name: 'Expenses', level: 'view' },
+      { name: 'Logistics', level: 'none' }, { name: 'Settings', level: 'none' },
+    ],
+  },
 ];
 
 const DEFAULT_PERMISSIONS: Record<string, string> = {
@@ -233,17 +282,38 @@ export default function SettingsPage() {
 
       {/* Add User Modal */}
       {addUserOpen && (
-        <Modal title="Create New User" onClose={() => setAddUserOpen(false)} onSubmit={createUser} submitLabel={addLoading ? 'Creating…' : 'Create User'} width={480}>
-          <div className="modal-field"><label>Full Name *</label><input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Juan dela Cruz" /></div>
-          <div className="modal-field"><label>Email Address *</label><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="juan@techanywhere.com" /></div>
+        <Modal title="Create New User" onClose={() => setAddUserOpen(false)} onSubmit={createUser} submitLabel={addLoading ? 'Creating…' : 'Create User'} width={580}>
+          <div className="modal-row">
+            <div className="modal-field"><label>Full Name *</label><input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Juan dela Cruz" /></div>
+            <div className="modal-field"><label>Email Address *</label><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="juan@techanywhere.com" /></div>
+          </div>
           <div className="modal-field"><label>Password *</label><input type="password" value={addForm.password} onChange={e => setAddForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 characters" /></div>
           <div className="modal-field">
-            <label>Access Level</label>
-            <select value={addForm.role} onChange={e => setAddForm(f => ({ ...f, role: e.target.value }))}>
-              {ACCESS_LEVELS.map(a => <option key={a}>{a}</option>)}
-            </select>
+            <label>Access Control</label>
+            <div className="role-picker">
+              {ROLE_DEFINITIONS.map(r => (
+                <button
+                  key={r.role}
+                  type="button"
+                  className={`role-picker__card ${addForm.role === r.role ? 'selected' : ''}`}
+                  onClick={() => setAddForm(f => ({ ...f, role: r.role }))}
+                >
+                  <div className="role-picker__header">
+                    <span className="role-picker__name">{r.role}</span>
+                    {addForm.role === r.role && <span className="role-picker__check">✓</span>}
+                  </div>
+                  <p className="role-picker__desc">{r.description}</p>
+                  <div className="role-picker__modules">
+                    {r.modules.map(m => (
+                      <span key={m.name} className={`role-picker__module role-picker__module--${m.level}`}>
+                        {m.name}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{DEFAULT_PERMISSIONS[addForm.role]}</p>
           {addError && <p style={{ fontSize: 12, color: 'var(--accent-red-hover)', background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.3)', borderRadius: 6, padding: '8px 12px' }}>{addError}</p>}
         </Modal>
       )}
