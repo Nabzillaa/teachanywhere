@@ -12,6 +12,7 @@ import Modal from '../../components/common/Modal';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useAppStore } from '../../store/appStore';
 import type { VisitStatus, BookingStatus, ExpenseStatus, TaskStatus, CommStatus, ReceiptFile } from '../../data/types';
+import { MANILA_HOTELS, VISIT_PURPOSES, TEAM_MEMBERS, VEHICLE_TYPES, MANILA_LOCATIONS } from '../../data/visitConstants';
 
 function openReceipt(file: ReceiptFile) {
   const byteString = atob(file.dataUrl.split(',')[1]);
@@ -56,6 +57,7 @@ const DIETARY_OPTIONS = [
 const ALL_STATUSES: VisitStatus[] = [
   'Draft', 'Proposed', 'Confirmed', 'In Planning', 'Ready for Arrival', 'Active', 'Completed', 'Closed', 'Cancelled'
 ];
+
 
 export default function VisitDetail() {
   const { id } = useParams<{ id: string }>();
@@ -256,21 +258,47 @@ function OverviewTab({ visitId }: { visitId: string }) {
             <div className="modal-field"><label>Client Company</label><input value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} /></div>
             <div className="modal-field"><label>Primary Contact</label><input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} /></div>
           </div>
-          <div className="modal-field"><label>Purpose of Visit</label><input value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} /></div>
+          <div className="modal-field">
+            <label>Purpose of Visit</label>
+            <select value={VISIT_PURPOSES.includes(form.purpose) ? form.purpose : 'Other'} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))}>
+              {VISIT_PURPOSES.map(p => <option key={p}>{p}</option>)}
+            </select>
+          </div>
           <div className="modal-row">
             <div className="modal-field"><label>Arrival Date</label><input type="date" value={form.arrivalDate} onChange={e => setForm(f => ({ ...f, arrivalDate: e.target.value }))} /></div>
             <div className="modal-field"><label>Departure Date</label><input type="date" value={form.departureDate} onChange={e => setForm(f => ({ ...f, departureDate: e.target.value }))} /></div>
           </div>
           <div className="modal-field"><label>Office Days (comma-separated)</label><input value={form.officeDays} onChange={e => setForm(f => ({ ...f, officeDays: e.target.value }))} placeholder="2026-03-17, 2026-03-18" /></div>
           <div className="modal-row">
-            <div className="modal-field"><label>Visit Lead</label><input value={form.visitLead} onChange={e => setForm(f => ({ ...f, visitLead: e.target.value }))} /></div>
-            <div className="modal-field"><label>Coordinator</label><input value={form.operationsCoordinator} onChange={e => setForm(f => ({ ...f, operationsCoordinator: e.target.value }))} /></div>
+            <div className="modal-field">
+              <label>Visit Lead</label>
+              <select value={form.visitLead} onChange={e => setForm(f => ({ ...f, visitLead: e.target.value }))}>
+                {TEAM_MEMBERS.map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div className="modal-field">
+              <label>Coordinator</label>
+              <select value={form.operationsCoordinator} onChange={e => setForm(f => ({ ...f, operationsCoordinator: e.target.value }))}>
+                <option value="">— None —</option>
+                {TEAM_MEMBERS.map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
           </div>
-          <div className="modal-row">
-            <div className="modal-field"><label>Flight Details</label><input value={form.flightDetails} onChange={e => setForm(f => ({ ...f, flightDetails: e.target.value }))} /></div>
-            <div className="modal-field"><label>Hotel Name</label><input value={form.hotelName} onChange={e => setForm(f => ({ ...f, hotelName: e.target.value }))} /></div>
+          <div className="modal-field"><label>Flight Details</label><input value={form.flightDetails} onChange={e => setForm(f => ({ ...f, flightDetails: e.target.value }))} placeholder="e.g. PR 201 arriving 14:30" /></div>
+          <div className="modal-field">
+            <label>Hotel</label>
+            <select
+              value={MANILA_HOTELS.find(h => h.name === form.hotelName) ? form.hotelName : 'Other / Custom'}
+              onChange={e => {
+                const hotel = MANILA_HOTELS.find(h => h.name === e.target.value);
+                setForm(f => ({ ...f, hotelName: e.target.value === 'Other / Custom' ? '' : e.target.value, hotelAddress: hotel?.address || f.hotelAddress }));
+              }}
+            >
+              <option value="">— Select Hotel —</option>
+              {MANILA_HOTELS.map(h => <option key={h.name} value={h.name}>{h.name}</option>)}
+            </select>
           </div>
-          <div className="modal-field"><label>Hotel Address</label><input value={form.hotelAddress} onChange={e => setForm(f => ({ ...f, hotelAddress: e.target.value }))} /></div>
+          <div className="modal-field"><label>Hotel Address</label><input value={form.hotelAddress} onChange={e => setForm(f => ({ ...f, hotelAddress: e.target.value }))} placeholder="Auto-filled when hotel is selected" /></div>
           <div className="modal-field"><label>Visit Goals</label><textarea rows={3} value={form.visitGoals} onChange={e => setForm(f => ({ ...f, visitGoals: e.target.value }))} /></div>
           <div className="modal-field"><label>Special Requirements</label><textarea rows={2} value={form.specialRequirements} onChange={e => setForm(f => ({ ...f, specialRequirements: e.target.value }))} /></div>
           <div className="modal-field"><label>Social Activities</label><textarea rows={2} value={form.socialActivities} onChange={e => setForm(f => ({ ...f, socialActivities: e.target.value }))} /></div>
@@ -616,15 +644,33 @@ function LogisticsTab({ visitId }: { visitId: string }) {
             <div className="modal-field"><label>Pickup Time</label><input type="time" value={tModal.form.pickupTime} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, pickupTime: e.target.value } }))} /></div>
           </div>
           <div className="modal-row">
-            <div className="modal-field"><label>Pickup Location *</label><input value={tModal.form.pickupLocation} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, pickupLocation: e.target.value } }))} placeholder="e.g. NAIA Terminal 3" /></div>
-            <div className="modal-field"><label>Dropoff Location *</label><input value={tModal.form.dropoffLocation} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, dropoffLocation: e.target.value } }))} placeholder="e.g. Seda BGC" /></div>
+            <div className="modal-field">
+              <label>Pickup Location *</label>
+              <select value={MANILA_LOCATIONS.includes(tModal.form.pickupLocation) ? tModal.form.pickupLocation : 'Other / Custom'} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, pickupLocation: e.target.value === 'Other / Custom' ? '' : e.target.value } }))}>
+                <option value="">— Select Location —</option>
+                {MANILA_LOCATIONS.map(l => <option key={l}>{l}</option>)}
+              </select>
+            </div>
+            <div className="modal-field">
+              <label>Dropoff Location *</label>
+              <select value={MANILA_LOCATIONS.includes(tModal.form.dropoffLocation) ? tModal.form.dropoffLocation : 'Other / Custom'} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, dropoffLocation: e.target.value === 'Other / Custom' ? '' : e.target.value } }))}>
+                <option value="">— Select Location —</option>
+                {MANILA_LOCATIONS.map(l => <option key={l}>{l}</option>)}
+              </select>
+            </div>
           </div>
           <div className="modal-row">
             <div className="modal-field"><label>Driver Name *</label><input value={tModal.form.driverName} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, driverName: e.target.value } }))} /></div>
             <div className="modal-field"><label>Driver Contact</label><input value={tModal.form.driverContact} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, driverContact: e.target.value } }))} /></div>
           </div>
           <div className="modal-row">
-            <div className="modal-field"><label>Vehicle Type</label><input value={tModal.form.vehicleType} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, vehicleType: e.target.value } }))} placeholder="e.g. Toyota HiAce Van" /></div>
+            <div className="modal-field">
+              <label>Vehicle Type</label>
+              <select value={VEHICLE_TYPES.includes(tModal.form.vehicleType) ? tModal.form.vehicleType : 'Other / Custom'} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, vehicleType: e.target.value === 'Other / Custom' ? '' : e.target.value } }))}>
+                <option value="">— Select Vehicle —</option>
+                {VEHICLE_TYPES.map(v => <option key={v}>{v}</option>)}
+              </select>
+            </div>
             <div className="modal-field"><label>Vehicle Registration</label><input value={tModal.form.vehicleReg} onChange={e => setTModal(m => ({ ...m, form: { ...m.form, vehicleReg: e.target.value } }))} /></div>
           </div>
           <div className="modal-row">
@@ -645,8 +691,20 @@ function LogisticsTab({ visitId }: { visitId: string }) {
             <div className="modal-field"><label>Guest Name *</label><input value={aModal.form.guestName} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, guestName: e.target.value } }))} /></div>
             <div className="modal-field"><label>Room Type</label><input value={aModal.form.roomType} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, roomType: e.target.value } }))} placeholder="e.g. Deluxe King" /></div>
           </div>
-          <div className="modal-field"><label>Hotel Name *</label><input value={aModal.form.hotelName} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, hotelName: e.target.value } }))} /></div>
-          <div className="modal-field"><label>Hotel Address</label><input value={aModal.form.hotelAddress} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, hotelAddress: e.target.value } }))} /></div>
+          <div className="modal-field">
+            <label>Hotel *</label>
+            <select
+              value={MANILA_HOTELS.find(h => h.name === aModal.form.hotelName) ? aModal.form.hotelName : 'Other / Custom'}
+              onChange={e => {
+                const hotel = MANILA_HOTELS.find(h => h.name === e.target.value);
+                setAModal(m => ({ ...m, form: { ...m.form, hotelName: e.target.value === 'Other / Custom' ? '' : e.target.value, hotelAddress: hotel?.address || m.form.hotelAddress } }));
+              }}
+            >
+              <option value="">— Select Hotel —</option>
+              {MANILA_HOTELS.map(h => <option key={h.name} value={h.name}>{h.name}</option>)}
+            </select>
+          </div>
+          <div className="modal-field"><label>Hotel Address</label><input value={aModal.form.hotelAddress} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, hotelAddress: e.target.value } }))} placeholder="Auto-filled when hotel is selected" /></div>
           <div className="modal-row">
             <div className="modal-field"><label>Check-In *</label><input type="date" value={aModal.form.checkIn} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, checkIn: e.target.value } }))} /></div>
             <div className="modal-field"><label>Check-Out *</label><input type="date" value={aModal.form.checkOut} onChange={e => setAModal(m => ({ ...m, form: { ...m.form, checkOut: e.target.value } }))} /></div>

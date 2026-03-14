@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle, Check, Plus, Trash2, ClipboardList 
 import { useAppStore } from '../../store/appStore';
 import { OFFICE_READINESS_TEMPLATE } from '../../data/mockData';
 import type { VisitStatus, BookingStatus } from '../../data/types';
+import { MANILA_HOTELS, VISIT_PURPOSES, TEAM_MEMBERS, VEHICLE_TYPES, MANILA_LOCATIONS } from '../../data/visitConstants';
 import './VisitWizard.css';
 
 const STEPS = ['Overview', 'Client Attendees', 'Internal Team', 'Travel & Logistics', 'Office Readiness', 'Tasks', 'Review'];
@@ -151,13 +152,22 @@ function Item({ primary, sub, onRemove }: { primary: string; sub?: string; onRem
 /* ── Step 1: Overview ── */
 function StepOverview({ ov, setOv }: { ov: Overview; setOv: React.Dispatch<React.SetStateAction<Overview>> }) {
   const f = (k: keyof Overview) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setOv(o => ({ ...o, [k]: e.target.value }));
+  const handleHotelChange = (name: string) => {
+    const hotel = MANILA_HOTELS.find(h => h.name === name);
+    setOv(o => ({ ...o, hotelName: name === 'Other / Custom' ? '' : name, hotelAddress: hotel?.address || o.hotelAddress }));
+  };
   return (
     <>
       <Sec title="Client Information">
         <div className="wz-grid">
           <Fld label="Company *"><input value={ov.company} onChange={f('company')} placeholder="e.g. Interact Solutions" /></Fld>
           <Fld label="Primary Contact *"><input value={ov.clientName} onChange={f('clientName')} placeholder="e.g. Thomas Harrison" /></Fld>
-          <Fld label="Purpose of Visit *" full><input value={ov.purpose} onChange={f('purpose')} placeholder="e.g. Quarterly team alignment and product review" /></Fld>
+          <Fld label="Purpose of Visit *" full>
+            <select value={VISIT_PURPOSES.includes(ov.purpose) ? ov.purpose : 'Other'} onChange={f('purpose')}>
+              <option value="">— Select Purpose —</option>
+              {VISIT_PURPOSES.map(p => <option key={p}>{p}</option>)}
+            </select>
+          </Fld>
           <Fld label="Special Requirements" full><textarea rows={2} value={ov.specialRequirements} onChange={f('specialRequirements')} placeholder="Dietary, accessibility, other needs..." /></Fld>
         </div>
       </Sec>
@@ -173,16 +183,29 @@ function StepOverview({ ov, setOv }: { ov: Overview; setOv: React.Dispatch<React
           </Fld>
           <Fld label="Visit Lead">
             <select value={ov.visitLead} onChange={f('visitLead')}>
-              <option>Nabil Sabin</option><option>Maria Santos</option><option>Other</option>
+              {TEAM_MEMBERS.map(m => <option key={m}>{m}</option>)}
             </select>
           </Fld>
-          <Fld label="Operations Coordinator"><input value={ov.operationsCoordinator} onChange={f('operationsCoordinator')} placeholder="e.g. Maria Santos" /></Fld>
+          <Fld label="Operations Coordinator">
+            <select value={ov.operationsCoordinator} onChange={f('operationsCoordinator')}>
+              <option value="">— None —</option>
+              {TEAM_MEMBERS.map(m => <option key={m}>{m}</option>)}
+            </select>
+          </Fld>
         </div>
       </Sec>
       <Sec title="Accommodation & Flights">
         <div className="wz-grid">
-          <Fld label="Hotel Name"><input value={ov.hotelName} onChange={f('hotelName')} placeholder="e.g. Seda BGC" /></Fld>
-          <Fld label="Hotel Address"><input value={ov.hotelAddress} onChange={f('hotelAddress')} placeholder="e.g. 30th St, BGC, Taguig" /></Fld>
+          <Fld label="Hotel">
+            <select
+              value={MANILA_HOTELS.find(h => h.name === ov.hotelName) ? ov.hotelName : 'Other / Custom'}
+              onChange={e => handleHotelChange(e.target.value)}
+            >
+              <option value="">— Select Hotel —</option>
+              {MANILA_HOTELS.map(h => <option key={h.name} value={h.name}>{h.name}</option>)}
+            </select>
+          </Fld>
+          <Fld label="Hotel Address"><input value={ov.hotelAddress} onChange={f('hotelAddress')} placeholder="Auto-filled when hotel is selected" /></Fld>
           <Fld label="Flight Details" full><input value={ov.flightDetails} onChange={f('flightDetails')} placeholder="e.g. QF19 SYD-MNL arriving 07:30" /></Fld>
         </div>
       </Sec>
@@ -265,6 +288,10 @@ function StepInternalTeam({ items, draft, setDraft, onAdd, onRemove }: { items: 
 function StepTravel({ transport, tDraft, setTDraft, onAddT, onRemoveT, accoms, aDraft, setADraft, onAddA, onRemoveA }: { transport: TransportDraft[]; tDraft: TransportDraft; setTDraft: React.Dispatch<React.SetStateAction<TransportDraft>>; onAddT: () => void; onRemoveT: (i: number) => void; accoms: AccomDraft[]; aDraft: AccomDraft; setADraft: React.Dispatch<React.SetStateAction<AccomDraft>>; onAddA: () => void; onRemoveA: (i: number) => void }) {
   const tf = (k: keyof TransportDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setTDraft(d => ({ ...d, [k]: e.target.value as never }));
   const af = (k: keyof AccomDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setADraft(d => ({ ...d, [k]: e.target.value as never }));
+  const handleAccomHotel = (name: string) => {
+    const hotel = MANILA_HOTELS.find(h => h.name === name);
+    setADraft(d => ({ ...d, hotelName: name === 'Other / Custom' ? '' : name, hotelAddress: hotel?.address || d.hotelAddress }));
+  };
   return (
     <>
       <Sec title={`Transport Bookings (${transport.length})`}>
@@ -272,12 +299,23 @@ function StepTravel({ transport, tDraft, setTDraft, onAddT, onRemoveT, accoms, a
           <Fld label="Date"><input type="date" value={tDraft.date} onChange={tf('date')} /></Fld>
           <Fld label="Pickup Time"><input type="time" value={tDraft.pickupTime} onChange={tf('pickupTime')} /></Fld>
           <Fld label="Vehicle Type">
-            <select value={tDraft.vehicleType} onChange={tf('vehicleType')}>
-              {['Car', 'Van', 'SUV', 'Bus', 'Shuttle', 'Other'].map(v => <option key={v}>{v}</option>)}
+            <select value={VEHICLE_TYPES.includes(tDraft.vehicleType) ? tDraft.vehicleType : 'Other / Custom'} onChange={tf('vehicleType')}>
+              <option value="">— Select Vehicle —</option>
+              {VEHICLE_TYPES.map(v => <option key={v}>{v}</option>)}
             </select>
           </Fld>
-          <Fld label="Pickup Location"><input value={tDraft.pickupLocation} onChange={tf('pickupLocation')} placeholder="e.g. NAIA Terminal 3" /></Fld>
-          <Fld label="Drop-off Location"><input value={tDraft.dropoffLocation} onChange={tf('dropoffLocation')} placeholder="e.g. Seda BGC" /></Fld>
+          <Fld label="Pickup Location">
+            <select value={MANILA_LOCATIONS.includes(tDraft.pickupLocation) ? tDraft.pickupLocation : 'Other / Custom'} onChange={e => setTDraft(d => ({ ...d, pickupLocation: e.target.value === 'Other / Custom' ? '' : e.target.value }))}>
+              <option value="">— Select Location —</option>
+              {MANILA_LOCATIONS.map(l => <option key={l}>{l}</option>)}
+            </select>
+          </Fld>
+          <Fld label="Drop-off Location">
+            <select value={MANILA_LOCATIONS.includes(tDraft.dropoffLocation) ? tDraft.dropoffLocation : 'Other / Custom'} onChange={e => setTDraft(d => ({ ...d, dropoffLocation: e.target.value === 'Other / Custom' ? '' : e.target.value }))}>
+              <option value="">— Select Location —</option>
+              {MANILA_LOCATIONS.map(l => <option key={l}>{l}</option>)}
+            </select>
+          </Fld>
           <Fld label="Vehicle Reg"><input value={tDraft.vehicleReg} onChange={tf('vehicleReg')} placeholder="e.g. ABC 1234" /></Fld>
           <Fld label="Driver Name"><input value={tDraft.driverName} onChange={tf('driverName')} placeholder="e.g. Juan Dela Cruz" /></Fld>
           <Fld label="Driver Contact"><input value={tDraft.driverContact} onChange={tf('driverContact')} placeholder="+63 9XX XXX XXXX" /></Fld>
@@ -301,8 +339,16 @@ function StepTravel({ transport, tDraft, setTDraft, onAddT, onRemoveT, accoms, a
       <Sec title={`Accommodation Bookings (${accoms.length})`}>
         <div className="wz-grid">
           <Fld label="Guest Name"><input value={aDraft.guestName} onChange={af('guestName')} placeholder="e.g. Thomas Harrison" /></Fld>
-          <Fld label="Hotel Name"><input value={aDraft.hotelName} onChange={af('hotelName')} placeholder="e.g. Seda BGC" /></Fld>
-          <Fld label="Hotel Address" full><input value={aDraft.hotelAddress} onChange={af('hotelAddress')} placeholder="e.g. 30th St, BGC, Taguig" /></Fld>
+          <Fld label="Hotel">
+            <select
+              value={MANILA_HOTELS.find(h => h.name === aDraft.hotelName) ? aDraft.hotelName : 'Other / Custom'}
+              onChange={e => handleAccomHotel(e.target.value)}
+            >
+              <option value="">— Select Hotel —</option>
+              {MANILA_HOTELS.map(h => <option key={h.name} value={h.name}>{h.name}</option>)}
+            </select>
+          </Fld>
+          <Fld label="Hotel Address" full><input value={aDraft.hotelAddress} onChange={af('hotelAddress')} placeholder="Auto-filled when hotel is selected" /></Fld>
           <Fld label="Check-In"><input type="date" value={aDraft.checkIn} onChange={af('checkIn')} /></Fld>
           <Fld label="Check-Out"><input type="date" value={aDraft.checkOut} onChange={af('checkOut')} /></Fld>
           <Fld label="Room Type"><input value={aDraft.roomType} onChange={af('roomType')} placeholder="e.g. Deluxe, Superior" /></Fld>

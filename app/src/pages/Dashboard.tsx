@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { LayoutDashboard, AlertTriangle, CheckCircle, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import StatCard from '../components/common/StatCard';
 import SectionCard from '../components/common/SectionCard';
@@ -14,6 +14,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const visits = useAppStore(s => s.visits);
   const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatus | 'All'>('All');
+  const [taskPage, setTaskPage] = useState(0);
+  const TASKS_PER_PAGE = 4;
 
   const activeVisits = visits.filter(v => v.status === 'Active');
   const allTasksWithVisit = visits.flatMap(v => v.tasks.map(t => ({ ...t, visitId: v.id, visitRef: v.visitRef, company: v.company })));
@@ -21,6 +23,8 @@ export default function Dashboard() {
   const filteredTasks = taskStatusFilter === 'All'
     ? allTasksWithVisit
     : allTasksWithVisit.filter(t => t.status === taskStatusFilter);
+  const taskPageCount = Math.ceil(filteredTasks.length / TASKS_PER_PAGE);
+  const pagedTasks = filteredTasks.slice(taskPage * TASKS_PER_PAGE, (taskPage + 1) * TASKS_PER_PAGE);
   const allExpenses = visits.flatMap(v => v.expenses.map(e => ({ ...e, visitRef: v.visitRef })));
   const pendingExpenses = allExpenses.filter(e => e.status === 'Submitted');
   const approvedExpenses = allExpenses.filter(e => e.status === 'Approved' || e.status === 'Paid');
@@ -45,17 +49,49 @@ export default function Dashboard() {
       <PageHeader
         icon={<LayoutDashboard size={20} />}
         title="Dashboard"
-        onRefresh={() => {}}
       />
 
       <div className="dashboard__stats">
-        <StatCard value={activeVisits.length} label="Active Visits" color="red" onEdit={() => navigate('/visits')} onRefresh={() => {}} />
-        <StatCard value={openTasks.length} label="Open Tasks" color="gold" onEdit={() => navigate('/visits')} onRefresh={() => {}} />
-        <StatCard value={`PHP ${totalPending.toLocaleString()}`} label="Expenses Pending" color="orange" onEdit={() => navigate('/expenses')} onRefresh={() => {}} />
-        <StatCard value={upcomingVisits.length} label="Upcoming Visits" color="dark" onEdit={() => navigate('/visits')} onRefresh={() => {}} />
+        <StatCard value={activeVisits.length} label="Active Visits" color="red" />
+        <StatCard value={openTasks.length} label="Open Tasks" color="gold" />
+        <StatCard value={`PHP ${totalPending.toLocaleString()}`} label="Expenses Pending" color="orange" />
+        <StatCard value={upcomingVisits.length} label="Upcoming Visits" color="dark" />
       </div>
 
-      <div className="dashboard__grid">
+      {/* Row 1: Upcoming Visits (full width) */}
+      <SectionCard title="Upcoming Visits">
+        {upcomingVisits.length === 0 ? (
+          <p className="section-card__empty">No upcoming visits</p>
+        ) : (
+          <table className="dashboard__table">
+            <thead>
+              <tr>
+                <th>Ref</th><th>Client</th><th>Company</th><th>Arrival</th><th>Status</th><th>Readiness</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {upcomingVisits.map(visit => (
+                <tr key={visit.id} onClick={() => navigate(`/visits/${visit.id}`)}>
+                  <td className="dashboard__table-ref">{visit.visitRef}</td>
+                  <td>{visit.clientName}</td>
+                  <td>{visit.company}</td>
+                  <td>{visit.arrivalDate}</td>
+                  <td><Badge label={visit.status} /></td>
+                  <td style={{ width: 140 }}><ProgressBar value={visit.logisticsReadinessScore ?? 0} /></td>
+                  <td>
+                    <button className="dashboard__table-link" onClick={e => { e.stopPropagation(); navigate(`/visits/${visit.id}`); }}>
+                      <ArrowRight size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </SectionCard>
+
+      {/* Row 2: Tasks | Visits at Risk */}
+      <div className="dashboard__cols">
         <SectionCard
           title="Tasks"
           actions={
@@ -64,7 +100,7 @@ export default function Dashboard() {
                 <button
                   key={status}
                   className={`dashboard__task-filter-btn ${taskStatusFilter === status ? 'active' : ''}`}
-                  onClick={() => setTaskStatusFilter(status as TaskStatus | 'All')}
+                  onClick={() => { setTaskStatusFilter(status as TaskStatus | 'All'); setTaskPage(0); }}
                 >
                   {status}
                 </button>
@@ -75,8 +111,9 @@ export default function Dashboard() {
           {filteredTasks.length === 0 ? (
             <p className="section-card__empty">No {taskStatusFilter === 'All' ? '' : taskStatusFilter} tasks to display</p>
           ) : (
+            <>
             <ul className="dashboard__task-list">
-              {filteredTasks.slice(0, 8).map(task => (
+              {pagedTasks.map(task => (
                 <li
                   key={task.id}
                   className="dashboard__task-item"
@@ -101,29 +138,26 @@ export default function Dashboard() {
                 </li>
               ))}
             </ul>
+            {taskPageCount > 1 && (
+              <div className="dashboard__pagination">
+                <button
+                  className="dashboard__page-btn"
+                  onClick={() => setTaskPage(p => p - 1)}
+                  disabled={taskPage === 0}
+                >‹</button>
+                <span className="dashboard__page-info">{taskPage + 1} / {taskPageCount}</span>
+                <button
+                  className="dashboard__page-btn"
+                  onClick={() => setTaskPage(p => p + 1)}
+                  disabled={taskPage >= taskPageCount - 1}
+                >›</button>
+              </div>
+            )}
+            </>
           )}
         </SectionCard>
 
-        <SectionCard title="Inbox – Recent Communications" onEdit={() => navigate('/communications')}>
-          {recentComms.length === 0 ? (
-            <p className="section-card__empty">No communications to display</p>
-          ) : (
-            <ul className="dashboard__comm-list">
-              {recentComms.map(comm => (
-                <li key={comm.id} className="dashboard__comm-item" onClick={() => navigate('/communications')}>
-                  <div className="dashboard__comm-header">
-                    <span className="dashboard__comm-recipient">{comm.recipient}</span>
-                    <span className="dashboard__comm-date">{comm.sentAt ? new Date(comm.sentAt).toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Draft'}</span>
-                  </div>
-                  <div className="dashboard__comm-subject">{comm.subject}</div>
-                  <div className="dashboard__comm-ref">{comm.company}</div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Visits at Risk" onEdit={() => navigate('/visits')}>
+        <SectionCard title="Visits at Risk">
           {atRiskVisits.length === 0 ? (
             <p className="section-card__empty">No at-risk visits — great work!</p>
           ) : (
@@ -150,39 +184,9 @@ export default function Dashboard() {
         </SectionCard>
       </div>
 
-      <div className="dashboard__row">
-        <SectionCard title="Upcoming Visits" onEdit={() => navigate('/visits')}>
-          {upcomingVisits.length === 0 ? (
-            <p className="section-card__empty">No upcoming visits</p>
-          ) : (
-            <table className="dashboard__table">
-              <thead>
-                <tr>
-                  <th>Ref</th><th>Client</th><th>Company</th><th>Arrival</th><th>Status</th><th>Readiness</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcomingVisits.map(visit => (
-                  <tr key={visit.id} onClick={() => navigate(`/visits/${visit.id}`)}>
-                    <td className="dashboard__table-ref">{visit.visitRef}</td>
-                    <td>{visit.clientName}</td>
-                    <td>{visit.company}</td>
-                    <td>{visit.arrivalDate}</td>
-                    <td><Badge label={visit.status} /></td>
-                    <td style={{ width: 140 }}><ProgressBar value={visit.logisticsReadinessScore ?? 0} /></td>
-                    <td>
-                      <button className="dashboard__table-link" onClick={e => { e.stopPropagation(); navigate(`/visits/${visit.id}`); }}>
-                        <ArrowRight size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Expense Summary" onEdit={() => navigate('/expenses')}>
+      {/* Row 3: Expense Summary | Communications */}
+      <div className="dashboard__cols">
+        <SectionCard title="Expense Summary">
           <div className="dashboard__expense-totals">
             {[
               { label: 'Approved', amount: totalApproved, color: '#1e8449', count: approvedExpenses.length },
@@ -221,72 +225,57 @@ export default function Dashboard() {
             </ul>
           )}
         </SectionCard>
-      </div>
 
-      <div className="dashboard__row">
-        <SectionCard title="Logistics Overview" onEdit={() => navigate('/logistics')}>
-          <div className="dashboard__logistics-grid">
-            {visits.filter(v => ['Confirmed', 'In Planning', 'Ready for Arrival', 'Active'].includes(v.status)).map(visit => (
-              <div key={visit.id} className="dashboard__logistics-item" onClick={() => navigate(`/visits/${visit.id}`)}>
-                <div className="dashboard__logistics-header">
-                  <span className="dashboard__logistics-ref">{visit.visitRef}</span>
-                  <Badge label={visit.status} />
-                </div>
-                <div className="dashboard__logistics-company">{visit.company}</div>
-                <div className="dashboard__logistics-dates">{visit.arrivalDate} → {visit.departureDate}</div>
-                <div className="dashboard__logistics-checks">
-                  <span className={`dashboard__logistics-check ${visit.transportBookings.length > 0 ? 'ok' : 'missing'}`}>
-                    {visit.transportBookings.length > 0 ? '✓' : '✗'} Transport
-                  </span>
-                  <span className={`dashboard__logistics-check ${visit.accommodationBookings.length > 0 ? 'ok' : 'missing'}`}>
-                    {visit.accommodationBookings.length > 0 ? '✓' : '✗'} Accommodation
-                  </span>
-                  <span className={`dashboard__logistics-check ${visit.officeReadiness.filter(o => o.completed).length === visit.officeReadiness.length && visit.officeReadiness.length > 0 ? 'ok' : 'missing'}`}>
-                    {visit.officeReadiness.filter(o => o.completed).length}/{visit.officeReadiness.length} Office Ready
-                  </span>
-                </div>
-                <ProgressBar value={visit.logisticsReadinessScore ?? 0} />
-              </div>
-            ))}
-            {visits.filter(v => ['Confirmed', 'In Planning', 'Ready for Arrival', 'Active'].includes(v.status)).length === 0 && (
-              <p className="section-card__empty">No active or upcoming visits</p>
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Quick Stats">
-          <div className="dashboard__quick-stats">
-            <div className="dashboard__quick-stat">
-              <span className="dashboard__quick-stat-icon" style={{ color: '#c0392b' }}><TrendingUp size={20} /></span>
-              <div>
-                <div className="dashboard__quick-stat-value">{visits.length}</div>
-                <div className="dashboard__quick-stat-label">Total Visits (2026)</div>
-              </div>
-            </div>
-            <div className="dashboard__quick-stat">
-              <span className="dashboard__quick-stat-icon" style={{ color: '#1e8449' }}><CheckCircle size={20} /></span>
-              <div>
-                <div className="dashboard__quick-stat-value">{visits.filter(v => v.status === 'Completed' || v.status === 'Closed').length}</div>
-                <div className="dashboard__quick-stat-label">Completed Visits</div>
-              </div>
-            </div>
-            <div className="dashboard__quick-stat">
-              <span className="dashboard__quick-stat-icon" style={{ color: '#ca6f1e' }}><Clock size={20} /></span>
-              <div>
-                <div className="dashboard__quick-stat-value">{visits.flatMap(v => v.expenses).filter(e => e.status === 'Submitted').length}</div>
-                <div className="dashboard__quick-stat-label">Expense Claims Pending</div>
-              </div>
-            </div>
-            <div className="dashboard__quick-stat">
-              <span className="dashboard__quick-stat-icon" style={{ color: '#c0392b' }}><AlertTriangle size={20} /></span>
-              <div>
-                <div className="dashboard__quick-stat-value">{visits.flatMap(v => v.internalAttendees).filter(a => !a.attendanceConfirmed).length}</div>
-                <div className="dashboard__quick-stat-label">Unconfirmed Attendees</div>
-              </div>
-            </div>
-          </div>
+        <SectionCard title="Inbox – Recent Communications">
+          {recentComms.length === 0 ? (
+            <p className="section-card__empty">No communications to display</p>
+          ) : (
+            <ul className="dashboard__comm-list">
+              {recentComms.map(comm => (
+                <li key={comm.id} className="dashboard__comm-item" onClick={() => navigate('/communications')}>
+                  <div className="dashboard__comm-header">
+                    <span className="dashboard__comm-recipient">{comm.recipient}</span>
+                    <span className="dashboard__comm-date">{comm.sentAt ? new Date(comm.sentAt).toLocaleString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Draft'}</span>
+                  </div>
+                  <div className="dashboard__comm-subject">{comm.subject}</div>
+                  <div className="dashboard__comm-ref">{comm.company}</div>
+                </li>
+              ))}
+            </ul>
+          )}
         </SectionCard>
       </div>
+
+      {/* Row 4: Logistics Overview (full width) */}
+      <SectionCard title="Logistics Overview">
+        <div className="dashboard__logistics-grid">
+          {visits.filter(v => ['Confirmed', 'In Planning', 'Ready for Arrival', 'Active'].includes(v.status)).map(visit => (
+            <div key={visit.id} className="dashboard__logistics-item" onClick={() => navigate(`/visits/${visit.id}`)}>
+              <div className="dashboard__logistics-header">
+                <span className="dashboard__logistics-ref">{visit.visitRef}</span>
+                <Badge label={visit.status} />
+              </div>
+              <div className="dashboard__logistics-company">{visit.company}</div>
+              <div className="dashboard__logistics-dates">{visit.arrivalDate} → {visit.departureDate}</div>
+              <div className="dashboard__logistics-checks">
+                <span className={`dashboard__logistics-check ${visit.transportBookings.length > 0 ? 'ok' : 'missing'}`}>
+                  {visit.transportBookings.length > 0 ? '✓' : '✗'} Transport
+                </span>
+                <span className={`dashboard__logistics-check ${visit.accommodationBookings.length > 0 ? 'ok' : 'missing'}`}>
+                  {visit.accommodationBookings.length > 0 ? '✓' : '✗'} Accommodation
+                </span>
+                <span className={`dashboard__logistics-check ${visit.officeReadiness.filter(o => o.completed).length === visit.officeReadiness.length && visit.officeReadiness.length > 0 ? 'ok' : 'missing'}`}>
+                  {visit.officeReadiness.filter(o => o.completed).length}/{visit.officeReadiness.length} Office Ready
+                </span>
+              </div>
+              <ProgressBar value={visit.logisticsReadinessScore ?? 0} />
+            </div>
+          ))}
+          {visits.filter(v => ['Confirmed', 'In Planning', 'Ready for Arrival', 'Active'].includes(v.status)).length === 0 && (
+            <p className="section-card__empty">No active or upcoming visits</p>
+          )}
+        </div>
+      </SectionCard>
     </div>
   );
 }
