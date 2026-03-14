@@ -99,7 +99,7 @@ export default function VisitWizard() {
         {step === 5 && <StepOffice items={of_} draft={od} setDraft={setOD}
           onAdd={() => { if (od.item) { setOF(o => [...o, od]); setOD({ ...oBlank }); } }}
           onRemove={i => setOF(o => o.filter((_, j) => j !== i))}
-          onLoadTemplate={() => { const ex = new Set(of_.map(o => o.item)); setOF(o => [...o, ...OFFICE_READINESS_TEMPLATE.filter(t => !ex.has(t.item)).map(t => ({ category: t.category, item: t.item }))]); }} />}
+          onLoadTemplate={() => { const ex = new Set(of_.map(o => o.item)); setOF(o => [...o, ...OFFICE_READINESS_TEMPLATE.filter(t => !ex.has(t.item)).map(t => t as OfficeDraft)]); }} />}
         {step === 6 && <StepTasks items={tk} draft={kd} setDraft={setKD}
           onAdd={() => { if (kd.title) { setTK(t => [...t, kd]); setKD({ ...kBlank }); } }}
           onRemove={i => setTK(t => t.filter((_, j) => j !== i))} />}

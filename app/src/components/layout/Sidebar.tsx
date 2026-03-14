@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Calendar, Users, Briefcase, Truck,
   Building2, MessageSquare, Receipt, BarChart2, Settings,
-  ChevronRight, LogOut
+  LogOut
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import './Sidebar.css';
@@ -43,7 +43,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </div>
 
       <nav className="sidebar__nav">
-        {NAV_ITEMS.map(({ label, path, icon: Icon, hasChildren }) => {
+        {NAV_ITEMS.map(({ label, path, icon: Icon }) => {
           const isActive = path === '/'
             ? location.pathname === '/'
             : location.pathname.startsWith(path);
@@ -56,10 +56,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             >
               <Icon size={16} className="sidebar__icon" />
               {!collapsed && (
-                <>
-                  <span className="sidebar__label">{label}</span>
-                  {hasChildren && <ChevronRight size={14} className="sidebar__chevron" />}
-                </>
+                <span className="sidebar__label">{label}</span>
               )}
             </NavLink>
           );
