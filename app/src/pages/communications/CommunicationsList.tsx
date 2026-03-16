@@ -16,13 +16,38 @@ interface Template {
   subjectTemplate: string;
 }
 
+const PAGE_SIZE = 10;
+
 export default function CommunicationsList() {
   const visits = useAppStore(s => s.visits);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({ search: '', type: '', channel: '', status: '' });
 
   const allComms = visits.flatMap(v =>
     v.communications.map(c => ({ ...c, visitRef: v.visitRef, company: v.company }))
   ).sort((a, b) => new Date(b.sentAt || '').getTime() - new Date(a.sentAt || '').getTime());
+
+  const typeOptions = [...new Set(allComms.map(c => c.type))].sort();
+  const channelOptions = [...new Set(allComms.map(c => c.channel))].filter(c => c !== 'Slack' && c !== 'Phone').sort();
+  const statusOptions = [...new Set(allComms.map(c => c.status))].sort();
+
+  const filtered = allComms.filter(c => {
+    const search = filters.search.toLowerCase();
+    if (search && !c.company.toLowerCase().includes(search) && !c.subject.toLowerCase().includes(search) && !c.recipient.toLowerCase().includes(search)) return false;
+    if (filters.type && c.type !== filters.type) return false;
+    if (filters.channel && c.channel !== filters.channel) return false;
+    if (filters.status && c.status !== filters.status) return false;
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageComms = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const setFilter = (key: keyof typeof filters, value: string) => {
+    setFilters(f => ({ ...f, [key]: value }));
+    setPage(1);
+  };
 
   const TEMPLATES: Template[] = [
     {
@@ -79,28 +104,77 @@ export default function CommunicationsList() {
     <div className="comms-page">
       <PageHeader icon={<MessageSquare size={20} />} title="Communications" />
 
+      <div className="comms-page__filters">
+        <input
+          className="comms-page__filter-search"
+          placeholder="Search company, subject, recipient…"
+          value={filters.search}
+          onChange={e => setFilter('search', e.target.value)}
+        />
+        <select value={filters.type} onChange={e => setFilter('type', e.target.value)}>
+          <option value="">All Types</option>
+          {typeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select value={filters.channel} onChange={e => setFilter('channel', e.target.value)}>
+          <option value="">All Channels</option>
+          {channelOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filters.status} onChange={e => setFilter('status', e.target.value)}>
+          <option value="">All Statuses</option>
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        {(filters.search || filters.type || filters.channel || filters.status) && (
+          <button className="comms-page__filter-clear" onClick={() => { setFilters({ search: '', type: '', channel: '', status: '' }); setPage(1); }}>
+            Clear
+          </button>
+        )}
+      </div>
+
       <SectionCard title={`Communication Log — All Visits (${allComms.length})`}>
-        {allComms.length === 0 ? (
-          <p className="section-card__empty">No communications logged across any visits</p>
+        {filtered.length === 0 ? (
+          <p className="section-card__empty">No communications match the current filters</p>
         ) : (
-          <table className="comms-page__table">
-            <thead>
-              <tr><th>Visit</th><th>Type</th><th>Subject</th><th>Recipient</th><th>Channel</th><th>Sent</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              {allComms.map(c => (
-                <tr key={c.id}>
-                  <td className="comms-page__ref">{c.visitRef} · {c.company}</td>
-                  <td><Badge label={c.type} /></td>
-                  <td>{c.subject}</td>
-                  <td>{c.recipient}</td>
-                  <td>{c.channel}</td>
-                  <td>{c.sentAt ? new Date(c.sentAt).toLocaleDateString('en-AU') : '—'}</td>
-                  <td><Badge label={c.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <table className="comms-page__table">
+              <thead>
+                <tr><th>Visit</th><th>Type</th><th>Subject</th><th>Recipient</th><th>Channel</th><th>Sent</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {pageComms.map(c => (
+                  <tr key={c.id}>
+                    <td className="comms-page__ref">{c.visitRef} · {c.company}</td>
+                    <td><Badge label={c.type} /></td>
+                    <td>{c.subject}</td>
+                    <td>{c.recipient}</td>
+                    <td>{c.channel}</td>
+                    <td>{c.sentAt ? new Date(c.sentAt).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                    <td><Badge label={c.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div className="comms-page__pagination">
+                <button
+                  className="comms-page__page-btn"
+                  onClick={() => setPage(p => p - 1)}
+                  disabled={page === 1}
+                >
+                  ‹ Prev
+                </button>
+                <span className="comms-page__page-info">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  className="comms-page__page-btn"
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page === totalPages}
+                >
+                  Next ›
+                </button>
+              </div>
+            )}
+          </>
         )}
       </SectionCard>
 

@@ -226,7 +226,6 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
   const [sending, setSending] = useState(false);
 
   const selectedVisit = visits.find(v => v.id === form.visitId);
-  const isEmail = template.channel === 'Email';
 
   const senderOptions: { label: string; value: string }[] = [
     ...(currentUser ? [{ label: `${currentUser.name} (you)`, value: currentUser.name }] : []),
@@ -288,50 +287,37 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
       return;
     }
 
-    if (isEmail) {
-      setSending(true);
-      try {
-        await sendEmail({
-          to_email: form.recipient,
-          subject: form.subject,
-          message: form.notes || form.subject,
-        });
+    setSending(true);
+    try {
+      await sendEmail({
+        to_email: form.recipient,
+        subject: form.subject,
+        message: form.notes || form.subject,
+      });
 
-        const comm: Omit<CommunicationLog, 'id' | 'visitId'> = {
-          type: template.type,
-          subject: form.subject,
-          recipient: form.recipient,
-          channel: template.channel,
-          status: 'Sent',
-          sentAt: new Date().toISOString(),
-          notes: form.notes,
-        };
-        addCommunication(form.visitId, comm);
-        onClose();
-      } catch {
-        const comm: Omit<CommunicationLog, 'id' | 'visitId'> = {
-          type: template.type,
-          subject: form.subject,
-          recipient: form.recipient,
-          channel: template.channel,
-          status: 'Failed',
-          notes: form.notes,
-        };
-        addCommunication(form.visitId, comm);
-        alert('Failed to send email. The communication has been logged as Failed.');
-        setSending(false);
-      }
-    } else {
       const comm: Omit<CommunicationLog, 'id' | 'visitId'> = {
         type: template.type,
         subject: form.subject,
         recipient: form.recipient,
         channel: template.channel,
-        status: 'Draft',
+        status: 'Sent',
+        sentAt: new Date().toISOString(),
         notes: form.notes,
       };
       addCommunication(form.visitId, comm);
       onClose();
+    } catch {
+      const comm: Omit<CommunicationLog, 'id' | 'visitId'> = {
+        type: template.type,
+        subject: form.subject,
+        recipient: form.recipient,
+        channel: template.channel,
+        status: 'Failed',
+        notes: form.notes,
+      };
+      addCommunication(form.visitId, comm);
+      alert('Failed to send email. The communication has been logged as Failed.');
+      setSending(false);
     }
   };
 
@@ -340,7 +326,7 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
       title={`Use Template: ${template.name}`}
       onClose={onClose}
       onSubmit={handleSubmit}
-      submitLabel={sending ? 'Sending…' : isEmail ? 'Send Email' : 'Create Communication'}
+      submitLabel={sending ? 'Sending…' : 'Send'}
       width={600}
     >
       <div className="modal-field">
@@ -370,7 +356,7 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
         </select>
       </div>
 
-      {isEmail && selectedVisit && clientAttendees.length > 0 ? (
+      {selectedVisit && clientAttendees.length > 0 ? (
         <div className="modal-row">
           <div className="modal-field" style={{ flex: 1 }}>
             <label>Recipient *</label>
@@ -397,11 +383,11 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
         </div>
       ) : (
         <div className="modal-field">
-          <label>Recipient {isEmail ? '(Email Address)' : '(Phone/Name)'} *</label>
+          <label>Recipient (Email Address) *</label>
           <input
             value={form.recipient}
             onChange={e => setForm(f => ({ ...f, recipient: e.target.value }))}
-            placeholder={isEmail ? 'client@company.com' : 'Contact name or number'}
+            placeholder="client@company.com"
           />
         </div>
       )}
@@ -437,7 +423,7 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
       </div>
 
       <div className="modal-field">
-        <label>{isEmail ? 'Message Body' : 'Message Draft'}</label>
+        <label>Message Body</label>
         <textarea
           rows={10}
           value={form.notes}
