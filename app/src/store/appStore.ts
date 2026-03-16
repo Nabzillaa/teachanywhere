@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type {
   Visit, Client, InternalAttendee, TransportBooking,
   AccommodationBooking, OfficeReadinessItem, CommunicationLog,
@@ -102,7 +103,7 @@ function visitLabel(visit: Visit | undefined) {
 
 let visitCounter = MOCK_VISITS.length + 1;
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(persist((set, get) => ({
   visits: MOCK_VISITS.map(v => ({ ...v, logisticsReadinessScore: calcReadiness(v) })),
   clients: MOCK_CLIENTS,
   deletedExpenses: [],
@@ -405,7 +406,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateClient: (id, changes) => {
     const client = get().clients.find(c => c.id === id);
-    set(s => ({ clients: s.clients.map(c => c.id === id ? { ...c, ...changes } : c) }));
+    set(s => ({
+      clients: s.clients.map(c => c.id === id ? { ...c, ...changes } : c),
+      visits: s.visits.map(v => ({
+        ...v,
+        clientAttendees: v.clientAttendees.map(a => a.id === id ? { ...a, ...changes } : a),
+      })),
+    }));
     const u = actor();
     if (u) logAudit({ action: 'client.updated', actorUid: u.uid, actorName: u.name, actorEmail: u.email, target: client?.name });
   },
@@ -416,4 +423,4 @@ export const useAppStore = create<AppState>((set, get) => ({
     const u = actor();
     if (u) logAudit({ action: 'client.deleted', actorUid: u.uid, actorName: u.name, actorEmail: u.email, target: client?.name, details: client?.company });
   },
-}));
+}), { name: 'techanywhere-app-store' }));

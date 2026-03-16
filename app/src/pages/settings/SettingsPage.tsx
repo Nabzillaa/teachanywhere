@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Settings, Pencil, Trash2, Plus, ShieldAlert, Users, Eye, EyeOff } from 'lucide-react';
-import GroupsQuestionnaire from './GroupsQuestionnaire';
+import { Settings, Pencil, Trash2, Plus, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import GroupsManager from './GroupsQuestionnaire';
 import AuditLog from './AuditLog';
 import './SettingsPage.css';
 import {
@@ -120,8 +120,6 @@ export default function SettingsPage() {
   const [addLoading, setAddLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<FirestoreUser | null>(null);
-  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
-  const [questionnaireAnswers, setQuestionnaireAnswers] = useState<{ questionId: string; value: string | string[] }[] | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -386,44 +384,8 @@ export default function SettingsPage() {
 
       {/* Groups & Access */}
       {isAdmin && (
-        <SectionCard
-          title="Groups & Access Control"
-          actions={
-            <button className="section-card__edit-btn" onClick={() => setShowQuestionnaire(true)}>
-              <Users size={12} /> Configure Groups
-            </button>
-          }
-        >
-          {questionnaireAnswers ? (
-            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                Requirements captured. Groups configuration will be built based on your answers.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {questionnaireAnswers.map(a => (
-                  <div key={a.questionId} style={{ display: 'flex', gap: 12, fontSize: 12 }}>
-                    <span style={{ color: 'var(--text-muted)', width: 180, flexShrink: 0, textTransform: 'capitalize' }}>{a.questionId.replace(/_/g, ' ')}</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {Array.isArray(a.value) ? a.value.join(', ') : a.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <button className="section-card__edit-btn" style={{ alignSelf: 'flex-start', marginTop: 4 }} onClick={() => setShowQuestionnaire(true)}>
-                Re-run questionnaire
-              </button>
-            </div>
-          ) : (
-            <div style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-              <Users size={32} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 400 }}>
-                Set up custom access groups to control exactly which areas of the system each team member can see and use.
-              </p>
-              <button className="section-card__edit-btn" onClick={() => setShowQuestionnaire(true)}>
-                <Users size={12} /> Start Setup
-              </button>
-            </div>
-          )}
+        <SectionCard title="Groups & Access Control">
+          <GroupsManager />
         </SectionCard>
       )}
 
@@ -436,13 +398,6 @@ export default function SettingsPage() {
           onClose={() => setConfirmDeleteUser(null)}
         />
       )}
-      {showQuestionnaire && (
-        <GroupsQuestionnaire
-          onComplete={answers => { setQuestionnaireAnswers(answers); setShowQuestionnaire(false); }}
-          onCancel={() => setShowQuestionnaire(false)}
-        />
-      )}
-
       {isAdmin && <AuditLog />}
     </div>
   );

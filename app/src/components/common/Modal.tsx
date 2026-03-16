@@ -14,7 +14,7 @@ interface ModalProps {
   footer?: React.ReactNode;
 }
 
-export default function Modal({ title, onClose, onSubmit, submitLabel = 'Save', submitDestructive = false, disableBackdropClose = false, width = 520, children, footer }: ModalProps) {
+export default function Modal({ title, onClose, onSubmit, submitLabel = 'Save', submitDestructive = false, disableBackdropClose = true, width = 520, children, footer }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

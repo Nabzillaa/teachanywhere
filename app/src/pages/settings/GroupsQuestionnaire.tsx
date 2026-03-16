@@ -1,263 +1,311 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronLeft, CheckCircle } from 'lucide-react';
+import { Pencil, Trash2, Plus, ShieldCheck } from 'lucide-react';
+import Modal from '../../components/common/Modal';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import './GroupsQuestionnaire.css';
 
-interface Answer {
-  questionId: string;
-  value: string | string[];
-}
-
-interface Question {
+interface Action { key: string; label: string; }
+interface Group {
   id: string;
-  section: string;
-  question: string;
-  subtext?: string;
-  type: 'single' | 'multi';
-  options: { value: string; label: string; description?: string }[];
+  name: string;
+  description: string;
+  permissions: Record<string, string[]>;
 }
 
-const QUESTIONS: Question[] = [
-  // ── ACCESS MODEL ──────────────────────────────────────────────────────────
-  {
-    id: 'access_model',
-    section: 'Access Model',
-    question: 'How should user access be structured?',
-    subtext: 'This determines the overall permission architecture.',
-    type: 'single',
-    options: [
-      { value: 'groups_only', label: 'Groups only', description: 'Users belong to a group and inherit its permissions. Simple and consistent.' },
-      { value: 'roles_only', label: 'Roles only', description: 'Keep the existing role system (Visit Lead, Ops Admin, etc.) but make roles configurable.' },
-      { value: 'groups_and_roles', label: 'Groups + Roles', description: 'Groups define module access; roles define what actions can be taken within a module.' },
-    ],
-  },
-  {
-    id: 'multi_group',
-    section: 'Access Model',
-    question: 'Can a user belong to more than one group?',
-    type: 'single',
-    options: [
-      { value: 'single', label: 'One group per user', description: 'Simpler — each user has exactly one group.' },
-      { value: 'multi', label: 'Multiple groups', description: 'User inherits combined permissions from all their groups.' },
-    ],
-  },
+const MODULE_ACTIONS: Record<string, Action[]> = {
+  Visits: [
+    { key: 'view',    label: 'View' },
+    { key: 'create',  label: 'Create' },
+    { key: 'edit',    label: 'Edit Details' },
+    { key: 'status',  label: 'Change Status' },
+    { key: 'delete',  label: 'Delete' },
+  ],
+  Clients: [
+    { key: 'view',    label: 'View' },
+    { key: 'create',  label: 'Add' },
+    { key: 'edit',    label: 'Edit' },
+    { key: 'delete',  label: 'Delete' },
+  ],
+  Attendees: [
+    { key: 'view',    label: 'View' },
+    { key: 'add',     label: 'Add' },
+    { key: 'edit',    label: 'Edit' },
+    { key: 'remove',  label: 'Remove' },
+    { key: 'confirm', label: 'Confirm Attendance' },
+  ],
+  Logistics: [
+    { key: 'view',               label: 'View' },
+    { key: 'transport_add',      label: 'Add Transport' },
+    { key: 'transport_edit',     label: 'Edit Transport' },
+    { key: 'transport_delete',   label: 'Delete Transport' },
+    { key: 'accommodation_add',  label: 'Add Accommodation' },
+    { key: 'accommodation_edit', label: 'Edit Accommodation' },
+    { key: 'accommodation_delete', label: 'Delete Accommodation' },
+  ],
+  Office: [
+    { key: 'view',     label: 'View' },
+    { key: 'complete', label: 'Complete Items' },
+    { key: 'add',      label: 'Add Items' },
+    { key: 'delete',   label: 'Delete Items' },
+    { key: 'template', label: 'Load Template' },
+  ],
+  Communications: [
+    { key: 'view',      label: 'View' },
+    { key: 'draft',     label: 'Draft' },
+    { key: 'send',      label: 'Send' },
+    { key: 'templates', label: 'Manage Templates' },
+    { key: 'delete',    label: 'Delete' },
+  ],
+  Expenses: [
+    { key: 'view',          label: 'View' },
+    { key: 'submit_own',    label: 'Submit Own' },
+    { key: 'submit_others', label: 'Submit for Others' },
+    { key: 'approve',       label: 'Approve / Reject' },
+    { key: 'delete',        label: 'Delete' },
+    { key: 'export',        label: 'Export' },
+  ],
+  Reports: [
+    { key: 'view',   label: 'View' },
+    { key: 'export', label: 'Export' },
+  ],
+  Settings: [
+    { key: 'view_users',    label: 'View Users' },
+    { key: 'manage_users',  label: 'Manage Users' },
+    { key: 'edit_policies', label: 'Edit Policies' },
+    { key: 'manage_groups', label: 'Manage Groups' },
+  ],
+};
 
-  // ── MODULE ACCESS ─────────────────────────────────────────────────────────
-  {
-    id: 'permission_levels',
-    section: 'Permission Levels',
-    question: 'What permission levels do you need per module?',
-    subtext: 'Select all levels that make sense for your team.',
-    type: 'multi',
-    options: [
-      { value: 'none', label: 'No Access', description: 'Module is completely hidden from the user.' },
-      { value: 'view', label: 'View Only', description: 'Can read data but cannot make any changes.' },
-      { value: 'edit', label: 'Edit', description: 'Can modify existing records but not create or delete.' },
-      { value: 'create', label: 'Create & Edit', description: 'Can create and modify records but not delete.' },
-      { value: 'full', label: 'Full Access', description: 'Can create, edit, and delete records.' },
-    ],
-  },
-  {
-    id: 'visit_scope',
-    section: 'Permission Levels',
-    question: 'For Visits — what should limited users see?',
-    type: 'single',
-    options: [
-      { value: 'all', label: 'All visits', description: 'Users can see every visit in the system.' },
-      { value: 'assigned', label: 'Only visits they\'re assigned to', description: 'Users only see visits where they\'re listed as Visit Lead, Coordinator, or Attendee.' },
-      { value: 'department', label: 'Visits in their department/group', description: 'Users see all visits tagged to their group.' },
-    ],
-  },
+const MODULES = Object.keys(MODULE_ACTIONS);
 
-  // ── EXPENSES ──────────────────────────────────────────────────────────────
-  {
-    id: 'expense_permissions',
-    section: 'Expenses',
-    question: 'What expense permissions do you need?',
-    subtext: 'Select all that apply to your team structure.',
-    type: 'multi',
-    options: [
-      { value: 'view', label: 'View expenses', description: 'Can see expense records.' },
-      { value: 'submit', label: 'Submit claims', description: 'Can create and submit their own expense claims.' },
-      { value: 'submit_others', label: 'Submit on behalf of others', description: 'Can submit expenses for other team members.' },
-      { value: 'approve', label: 'Approve / Reject', description: 'Can approve or reject submitted claims.' },
-      { value: 'export', label: 'Export & report', description: 'Can export expense data and run reports.' },
-    ],
-  },
+function allActions(module: string) { return MODULE_ACTIONS[module].map(a => a.key); }
+function fullPerms() { return Object.fromEntries(MODULES.map(m => [m, allActions(m)])); }
 
-  // ── COMMUNICATIONS ────────────────────────────────────────────────────────
+const PRESET_GROUPS: Group[] = [
   {
-    id: 'comms_permissions',
-    section: 'Communications',
-    question: 'For Communications — what should non-admins be able to do?',
-    type: 'multi',
-    options: [
-      { value: 'view', label: 'View sent communications', description: 'Can read communication logs.' },
-      { value: 'draft', label: 'Draft communications', description: 'Can write drafts but not send.' },
-      { value: 'send', label: 'Send communications', description: 'Can send emails and messages to clients.' },
-      { value: 'templates', label: 'Manage templates', description: 'Can create and edit communication templates.' },
-    ],
+    id: 'administrator',
+    name: 'Administrator',
+    description: 'Full system access including user and settings management.',
+    permissions: fullPerms(),
   },
-
-  // ── SETTINGS ──────────────────────────────────────────────────────────────
   {
-    id: 'settings_access',
-    section: 'Settings',
-    question: 'Who should have access to Settings?',
-    type: 'single',
-    options: [
-      { value: 'admin_only', label: 'Administrators only', description: 'Only users with Administrator role can access Settings.' },
-      { value: 'configurable', label: 'Configurable per group', description: 'Settings access can be granted to specific groups.' },
-    ],
+    id: 'visit_lead',
+    name: 'Visit Lead',
+    description: 'Manages visits end-to-end. No access to Settings.',
+    permissions: {
+      Visits:         ['view', 'create', 'edit', 'status'],
+      Clients:        ['view'],
+      Attendees:      ['view', 'add', 'edit', 'remove', 'confirm'],
+      Logistics:      ['view', 'transport_add', 'transport_edit', 'accommodation_add', 'accommodation_edit'],
+      Office:         ['view'],
+      Communications: ['view', 'draft', 'send', 'templates'],
+      Expenses:       ['view'],
+      Reports:        ['view'],
+      Settings:       [],
+    },
   },
-
-  // ── DEFAULT ACCESS ────────────────────────────────────────────────────────
   {
-    id: 'new_user_default',
-    section: 'Defaults',
-    question: 'What access should a new user have before being assigned a group?',
-    type: 'single',
-    options: [
-      { value: 'none', label: 'No access at all', description: 'They see a "contact your admin" screen until assigned.' },
-      { value: 'read_only', label: 'Read-only across all modules', description: 'They can view everything but change nothing.' },
-      { value: 'default_group', label: 'Automatically assigned to a default group', description: 'All new users go into a predefined "Default" group.' },
-    ],
+    id: 'ops_admin',
+    name: 'Ops Admin',
+    description: 'Handles logistics, office readiness, and expense submission.',
+    permissions: {
+      Visits:         ['view'],
+      Clients:        ['view'],
+      Attendees:      ['view'],
+      Logistics:      allActions('Logistics'),
+      Office:         allActions('Office'),
+      Communications: ['view', 'draft', 'send', 'templates'],
+      Expenses:       ['view', 'submit_own'],
+      Reports:        ['view'],
+      Settings:       [],
+    },
   },
-
-  // ── AUDIT ─────────────────────────────────────────────────────────────────
   {
-    id: 'audit_log',
-    section: 'Audit & Logging',
-    question: 'Do you need an audit log of what users do?',
-    type: 'single',
-    options: [
-      { value: 'none', label: 'Not needed', description: 'No activity tracking required.' },
-      { value: 'basic', label: 'Basic — logins and key actions', description: 'Track who logged in and major changes (expense approvals, visit status changes).' },
-      { value: 'full', label: 'Full audit trail', description: 'Log every create, update, and delete with timestamp and user.' },
-    ],
+    id: 'finance_approver',
+    name: 'Finance Approver',
+    description: 'Views and approves or rejects expense claims and reports.',
+    permissions: {
+      Visits: [], Clients: [], Attendees: [], Logistics: [], Office: [], Communications: [],
+      Expenses:  ['view', 'approve', 'export'],
+      Reports:   ['view', 'export'],
+      Settings:  [],
+    },
   },
-
-  // ── STARTER GROUPS ────────────────────────────────────────────────────────
   {
-    id: 'starter_groups',
-    section: 'Starter Groups',
-    question: 'Which starter groups should be pre-configured?',
-    subtext: 'You can edit or add more groups after setup.',
-    type: 'multi',
-    options: [
-      { value: 'admin', label: 'Administrator', description: 'Full system access.' },
-      { value: 'visit_lead', label: 'Visit Lead', description: 'Full visit management, limited settings.' },
-      { value: 'ops', label: 'Operations', description: 'Logistics, office readiness, communications.' },
-      { value: 'finance', label: 'Finance', description: 'Expenses and reports only.' },
-      { value: 'readonly', label: 'Read-Only / Executive', description: 'Dashboard and reports, view-only.' },
-      { value: 'client_liaison', label: 'Client Liaison', description: 'Client, attendees, and communications only.' },
-    ],
+    id: 'read_only',
+    name: 'Read-only',
+    description: 'View-only access. Cannot edit anything.',
+    permissions: {
+      Visits: ['view'], Clients: ['view'], Attendees: ['view'],
+      Logistics: [], Office: [],
+      Communications: ['view'],
+      Expenses: ['view'], Reports: ['view'],
+      Settings: [],
+    },
   },
 ];
 
-const SECTIONS = [...new Set(QUESTIONS.map(q => q.section))];
+function generateId() { return Math.random().toString(36).slice(2, 10); }
 
-interface Props {
-  onComplete: (answers: Answer[]) => void;
-  onCancel: () => void;
+function badgeStyle(granted: number, total: number) {
+  if (granted === 0) return null;
+  if (granted === total) return { bg: 'rgba(30,132,73,0.12)', color: '#1e8449' };
+  return { bg: 'rgba(36,113,163,0.12)', color: '#2471a3' };
 }
 
-export default function GroupsQuestionnaire({ onComplete, onCancel }: Props) {
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Answer[]>([]);
+export default function GroupsManager() {
+  const [groups, setGroups] = useState<Group[]>(PRESET_GROUPS);
+  const [editGroup, setEditGroup] = useState<Group | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Group | null>(null);
 
-  const question = QUESTIONS[step];
-  const current = answers.find(a => a.questionId === question.id);
-  const sectionIdx = SECTIONS.indexOf(question.section);
-  const progress = ((step) / QUESTIONS.length) * 100;
-
-  const setValue = (val: string) => {
-    if (question.type === 'single') {
-      setAnswers(prev => {
-        const next = prev.filter(a => a.questionId !== question.id);
-        return [...next, { questionId: question.id, value: val }];
-      });
-    } else {
-      setAnswers(prev => {
-        const existing = (prev.find(a => a.questionId === question.id)?.value as string[]) ?? [];
-        const next = existing.includes(val) ? existing.filter(v => v !== val) : [...existing, val];
-        const rest = prev.filter(a => a.questionId !== question.id);
-        return [...rest, { questionId: question.id, value: next }];
-      });
-    }
+  const openAdd = () => {
+    setEditGroup({ id: generateId(), name: '', description: '', permissions: Object.fromEntries(MODULES.map(m => [m, []])) });
+    setIsNew(true);
   };
 
-  const isSelected = (val: string) => {
-    if (!current) return false;
-    if (question.type === 'single') return current.value === val;
-    return (current.value as string[]).includes(val);
+  const openEdit = (group: Group) => {
+    setEditGroup({ ...group, permissions: Object.fromEntries(MODULES.map(m => [m, [...(group.permissions[m] ?? [])]]))  });
+    setIsNew(false);
   };
 
-  const canNext = current && (
-    question.type === 'single'
-      ? !!current.value
-      : (current.value as string[]).length > 0
-  );
+  const saveGroup = () => {
+    if (!editGroup || !editGroup.name.trim()) return;
+    setGroups(gs => isNew ? [...gs, editGroup] : gs.map(g => g.id === editGroup.id ? editGroup : g));
+    setEditGroup(null);
+  };
 
-  const isLast = step === QUESTIONS.length - 1;
+  const toggleAction = (module: string, key: string) => {
+    if (!editGroup) return;
+    const current = editGroup.permissions[module] ?? [];
+    const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key];
+    setEditGroup({ ...editGroup, permissions: { ...editGroup.permissions, [module]: next } });
+  };
+
+  const toggleAll = (module: string) => {
+    if (!editGroup) return;
+    const current = editGroup.permissions[module] ?? [];
+    const all = allActions(module);
+    const next = current.length === all.length ? [] : all;
+    setEditGroup({ ...editGroup, permissions: { ...editGroup.permissions, [module]: next } });
+  };
 
   return (
-    <div className="gq">
-      <div className="gq__sidebar">
-        <h2 className="gq__sidebar-title">Groups & Permissions Setup</h2>
-        <p className="gq__sidebar-sub">Answer {QUESTIONS.length} questions to configure the right access model for your team.</p>
-        <div className="gq__sections">
-          {SECTIONS.map((s, i) => (
-            <div key={s} className={`gq__section-item ${i === sectionIdx ? 'active' : ''} ${i < sectionIdx ? 'done' : ''}`}>
-              {i < sectionIdx ? <CheckCircle size={14} /> : <span className="gq__section-dot" />}
-              {s}
-            </div>
-          ))}
-        </div>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 18px 0' }}>
+        <button className="section-card__edit-btn" onClick={openAdd}>
+          <Plus size={12} /> Add Group
+        </button>
       </div>
 
-      <div className="gq__main">
-        <div className="gq__progress">
-          <div className="gq__progress-bar" style={{ width: `${progress}%` }} />
-        </div>
-
-        <div className="gq__content">
-          <span className="gq__section-label">{question.section}</span>
-          <h3 className="gq__question">{question.question}</h3>
-          {question.subtext && <p className="gq__subtext">{question.subtext}</p>}
-
-          <div className="gq__options">
-            {question.options.map(opt => (
-              <button
-                key={opt.value}
-                className={`gq__option ${isSelected(opt.value) ? 'selected' : ''}`}
-                onClick={() => setValue(opt.value)}
-              >
-                <div className={`gq__option-check ${question.type === 'multi' ? 'multi' : ''}`}>
-                  {isSelected(opt.value) && <CheckCircle size={14} />}
-                </div>
-                <div className="gq__option-text">
-                  <span className="gq__option-label">{opt.label}</span>
-                  {opt.description && <span className="gq__option-desc">{opt.description}</span>}
-                </div>
-              </button>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr>
+            {['Group', 'Description', 'Module Access', ''].map(h => (
+              <th key={h} style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '8px 18px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>{h}</th>
             ))}
-          </div>
-        </div>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map(group => (
+            <tr key={group.id} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '12px 18px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldCheck size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  {group.name}
+                </div>
+              </td>
+              <td style={{ padding: '12px 18px', color: 'var(--text-muted)', fontSize: 12, maxWidth: 200 }}>{group.description}</td>
+              <td style={{ padding: '12px 18px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {MODULES.map(m => {
+                    const granted = (group.permissions[m] ?? []).length;
+                    const total = MODULE_ACTIONS[m].length;
+                    const s = badgeStyle(granted, total);
+                    if (!s) return null;
+                    return (
+                      <span key={m} style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: s.bg, color: s.color, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                        {m} · {granted}/{total}
+                      </span>
+                    );
+                  })}
+                  {MODULES.every(m => (group.permissions[m] ?? []).length === 0) && (
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No access</span>
+                  )}
+                </div>
+              </td>
+              <td style={{ padding: '12px 18px' }}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="visit-detail__action-btn" onClick={() => openEdit(group)}><Pencil size={13} /></button>
+                  <button className="visit-detail__action-btn visit-detail__action-btn--delete" onClick={() => setConfirmDelete(group)}><Trash2 size={13} /></button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-        <div className="gq__footer">
-          <button className="gq__btn gq__btn--secondary" onClick={step === 0 ? onCancel : () => setStep(s => s - 1)}>
-            <ChevronLeft size={16} /> {step === 0 ? 'Cancel' : 'Back'}
-          </button>
-          <span className="gq__step-count">{step + 1} / {QUESTIONS.length}</span>
-          <button
-            className="gq__btn gq__btn--primary"
-            disabled={!canNext}
-            onClick={() => isLast ? onComplete(answers) : setStep(s => s + 1)}
-          >
-            {isLast ? 'Generate Groups' : 'Next'} <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
+      {editGroup && (
+        <Modal title={isNew ? 'Add Group' : `Edit — ${editGroup.name}`} onClose={() => setEditGroup(null)} onSubmit={saveGroup} submitLabel="Save Group" width={640}>
+          <div className="modal-row">
+            <div className="modal-field">
+              <label>Group Name *</label>
+              <input value={editGroup.name} onChange={e => setEditGroup({ ...editGroup, name: e.target.value })} placeholder="e.g. Operations Team" />
+            </div>
+            <div className="modal-field">
+              <label>Description</label>
+              <input value={editGroup.description} onChange={e => setEditGroup({ ...editGroup, description: e.target.value })} placeholder="What this group can do" />
+            </div>
+          </div>
+
+          <div className="modal-field" style={{ marginTop: 8 }}>
+            <label>Module Permissions</label>
+            <div className="gm__modules">
+              {MODULES.map(module => {
+                const granted = editGroup.permissions[module] ?? [];
+                const actions = MODULE_ACTIONS[module];
+                const allGranted = granted.length === actions.length;
+                const hasAny = granted.length > 0;
+                return (
+                  <div key={module} className={`gm__module-block ${hasAny ? 'active' : ''}`}>
+                    <div className="gm__module-header">
+                      <span className="gm__module-name">{module}</span>
+                      <button type="button" className={`gm__select-all ${allGranted ? 'all-on' : ''}`} onClick={() => toggleAll(module)}>
+                        {allGranted ? 'Deselect all' : 'Select all'}
+                      </button>
+                    </div>
+                    <div className="gm__actions">
+                      {actions.map(action => {
+                        const checked = granted.includes(action.key);
+                        return (
+                          <button
+                            key={action.key}
+                            type="button"
+                            className={`gm__action-chip ${checked ? 'checked' : ''}`}
+                            onClick={() => toggleAction(module, action.key)}
+                          >
+                            <span className={`gm__chip-dot ${checked ? 'checked' : ''}`} />
+                            {action.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          title="Delete Group"
+          message={<>Delete <strong>{confirmDelete.name}</strong>? Users assigned to this group will lose their permissions.</>}
+          onConfirm={() => { setGroups(gs => gs.filter(g => g.id !== confirmDelete.id)); setConfirmDelete(null); }}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
